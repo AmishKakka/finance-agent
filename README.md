@@ -35,11 +35,11 @@ This design allows the system to be efficient (only calls necessary agents) whil
 
 ## Tech Stack
 
-- **Orchestration**: LangGraph (LangChain)
+- **Orchestration**: LangGraph
 - **Graph Database**: Neo4j AuraDB
 - **LLM**: Gemini 2.5 Flash (via Google API)
 - **Data Sources**: yfinance, Tavily Web Search
-- **Backend**: FastAPI
+- **Backend**: Typescript, Zod
 - **Persistence**: SQLite / Redis (LangGraph checkpointer)
 
 ## How It Works (Example Flow)
