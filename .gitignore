@@ -1,2 +1,5 @@
-backend/node_modules/
-backend/dist/
+# Python3 environment
+.venv/
+
+# Store all your api-keys and secrets in this file
+secrets.txt

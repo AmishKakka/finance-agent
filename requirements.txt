@@ -1,0 +1,6 @@
+langchain
+langchain_core
+langgraph
+langchain-google-genai
+yfinance
+tavily
