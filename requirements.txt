@@ -3,4 +3,7 @@ langchain_core
 langgraph
 langchain-google-genai
 yfinance
-tavily
+ddgs
+python-dotenv
+fastapi
+uvicorn
