@@ -69,8 +69,9 @@ def Supervisor( state: State):
         - Multiple agents can run in parallel.
         - If the user asks about one specific company, you may skip CypherAgent unless additional filtering is required.
         - Agent names to use --> NewsAgent, FinancialStmtAgent, OutlookAgent, SectorAgent
+        - For any agent that you select to work with provide detailed task of what the agent must do.
 
-        You MUST respond with **valid JSON only** in the exact format below. No extra text, no explanations, no markdown.
+        You MUST respond with **valid JSON only** in the exact format below. No markdown.
 
         Filter Stocks query - filter companies with $1B+ sales and 10% net margin
         Response - 
@@ -175,7 +176,7 @@ def Controller(state: State):
     return { "finalReport": completeReport }
 
 
-def build_grpah():
+def build_graph():
     '''
         Build the entire agent workflow.
         Adding Nodes and conditional edges to activate only required Agents.
@@ -204,11 +205,11 @@ def build_grpah():
 
 # --------------------------------------------------------------------------- #
 if __name__ == "__main__":
-    app = build_grpah()
+    app = build_graph()
     
     result = app.invoke({
-        "tickerName": "NVDA",
-        "query": "Status of the Mining Sector.",              
+        "tickerName": "AAPL",
+        "query": "Compare NVDA and AAPL based on their financials",              
         "completedSections": [],     
         "finalReport": ""
     }) # type: ignore[reportArgumentType]

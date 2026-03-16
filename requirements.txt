@@ -7,3 +7,5 @@ ddgs
 python-dotenv
 fastapi
 uvicorn
+duckdb
+pandas

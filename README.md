@@ -16,7 +16,7 @@ An agentic AI system that takes a prompt (e.g., “Show me positive cash flow co
 - **5 Specialized Agents**:
   - **NewsAgent** — Fetches & summarizes latest news using Tavily Web search.
   - **Financial Stmt. Agent** — Pulls cash flow, earnings, income statements, ratios (yfinance) + generates insights.
-  - **Cypher Agent** — Natural-language → Cypher queries on Neo4j graph (filters by market cap, sector, profit margin, cashflow positivity, etc.)
+  - **SQL Agent** — Natural-language → SQL queries on Duckdb (filters by market cap, sector, profit margin, cashflow positivity, etc.)
   - **Outlook Agent** — Price targets, revenue estimates, analyst recommendations & future outlook.
   - **Sector Agent** — Sector/industry level news and forward-looking outlook.
 - **Controller / Synthesizer** — Combines all agent outputs into a polished, actionable final report with confidence scores and sources.
@@ -36,10 +36,10 @@ This design allows the system to be efficient (only calls necessary agents) whil
 ## Tech Stack
 
 - **Orchestration**: LangGraph
-- **Graph Database**: Neo4j AuraDB
+- **SQL Database**: Duck DB
 - **LLM**: Gemini 2.5 Flash (via Google API)
-- **Data Sources**: yfinance, Tavily Web Search
-- **Backend**: Typescript, Zod
+- **Data Sources**: yfinance, DuckDuckGo Search
+- **Backend**: Python, Pydantic
 - **Persistence**: SQLite / Redis (LangGraph checkpointer)
 
 ## How It Works (Example Flow)
@@ -48,7 +48,7 @@ This design allows the system to be efficient (only calls necessary agents) whil
 "I want positive cash-flow tech companies with profit margin >20% and strong sector outlook."
 
 **Supervisor decides**:
-- Cypher Agent (graph filtering)
+- SQL Agent (filtering)
 - Financial Stmt Agent (cashflow validation)
 - Sector Agent (sector outlook)
 
