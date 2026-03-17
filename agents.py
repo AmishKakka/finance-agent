@@ -4,9 +4,12 @@ from langgraph.types import Send
 from langgraph.graph import StateGraph, START, END
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
-from typing import DefaultDict, List, TypedDict, Annotated
+from typing import Any, DefaultDict, List, TypedDict, Annotated
 from ddgs import DDGS
 import os
+import yfinance as yf
+import json
+from IPython.display import Markdown
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 load_dotenv()
@@ -31,10 +34,10 @@ class State(TypedDict):
     query: str
     agentsNeeded: List[str]
     subTasks: DefaultDict
-    newsQuery: str
-    finStmtQuery: str
-    sectorOutlookQuery: str
-    outlookQuery: str
+    newsQuery: DefaultDict[str, Any]
+    finStmtQuery: DefaultDict[str, Any]
+    sectorOutlookQuery: DefaultDict[str, Any]
+    outlookQuery: DefaultDict[str, Any]
     completedSections: Annotated[List[str], operator.add]
     finalReport: str
 
@@ -53,34 +56,57 @@ def Supervisor( state: State):
     response = planner.invoke([
         SystemMessage(content="""
         You are a financial advisor working on Wall Street for 25+ years with experience in all industries/sector. 
-        Also, if the user has provided a query use that, understand what user wants and generate tasks for agents as required.
+        You have 5 specialized agents at your disposal to help the user with its query.
+                      
+        Agent Capabilities - 
+        1. NewsAgent - Get the recent news based on the query or company name provided by the user and provide a summarization of it.
+        2. FinancialStmtAgent - Pulls cash flow, earnings, income statements, balance sheet from yfinance and generates insights. 
+                Specifically, it can fetch - get_income_stmt(), get_balance_sheet(), get_cashflow(), get_earnings(), get_earnings_dates().
+        3. OutlookAgent - Retrieves price targets, revenue estimates, analyst recommendations from yfinance and generates insights.
+                Specifically, it can fetch - get_recommendations_summary(), get_analyst_price_targets(), get_revenue_estimate(), get_growth_estimates()
+        4. SectorAgent — Sector/industry level news and forward-looking outlook.
+        5. SQLAgent - Filters companies based on financial ratios, net margin, profit margin, price, or Sector using SQL.
+                      
+        Core Rules:
+        - Start with SQLAgent for any screening, filtering, or list-based query (e.g., "filter companies with $1B+ sales and 10% net margin").
+        - Use minimum number of agents needed. Never call unnecessary agents.
+        - Multiple agents can run in parallel.
+        - If the user asks about one specific company, you may skip SQLAgent unless additional filtering is required.
+        - Agent names to use --> NewsAgent, FinancialStmtAgent, OutlookAgent, SectorAgent, SQLAgent
+        - For any agent that you select to work with, provide "task" and "fetch" arguments. The "fetch" argument is what it needs to fetch from
+        its resource. So, if it is - 
+                      1. NewsAgent - {"task": "Summarize the latest news around Apple", "fetch": ["latest news around Apple", "lastest products by Apple"]}
+                      2. FinancialStmtAgent - {"task": "What do Apple's earning look like?", "fetch": ["get_earnings()"]}
+                      3. SectorAgent - {"task": "Summarize the Govt's hand in Mining industry", "fetch": ["developments in Mining industry", "What is the Govt. doing for Mining companies"]}
+                      4. OutlookAgent -  {"task": "what are analysts' view on Google?", "fetch": ["get_recommendations_summary()"]}
+                      
+        Now that you know what each agent is capable of, if the user has provided a query use that, understand what user wants and generate tasks for agents as required.
         Your ONLY job is to analyze the user's query and create the most efficient execution plan using the available specialized agents. 
         Do not generate the final report yourself.
         
-            1. News Agent — Fetches and summarizes the latest news for specific companies or sectors using Tavily.
-            2. Financial Stmt. Agent — Pulls cash flow, earnings, income statements, ratios from yfinance and generates quantitative insights.
-            3. Outlook Agent — Retrieves price targets, revenue estimates, analyst recommendations, and future outlook.
-            4. Sector Agent — Sector/industry level news and forward-looking outlook.
-            5. CypherAgent — Filters companies in Neo4j graph by financial metrics
-            
-        Core Rules:
-        - Start with CypherAgent for any screening, filtering, or list-based query (e.g., "filter companies with $1B+ sales and 10% net margin").
-        - Use the minimum number of agents needed. Never call unnecessary agents.
-        - Multiple agents can run in parallel.
-        - If the user asks about one specific company, you may skip CypherAgent unless additional filtering is required.
-        - Agent names to use --> NewsAgent, FinancialStmtAgent, OutlookAgent, SectorAgent
-        - For any agent that you select to work with provide detailed task of what the agent must do.
+        Suppose, the user selects AAPL as the company name and enters a query like - What does Apple's balance sheet look like? Are they cash positive?
+        In this case, the user only wants to know how Apple has been performing cash flow side and what does its balance sheet look like.
+        So, you will call FinancialStmtAgent and say specifically that you want to fetch - ["get_balance_sheet()", "get_cashflow()"], 
+        and similarly for other tasks you willcall respective functions for this agent.       
+                      
+        Response -
+        {
+        "agentsNeeded": ["FinancialStmtAgent"],
+        "subTasks": {
+            "FinancialStmtAgent": {
+                      "task": "Analyze earnings and cash flow trends for Apple",
+                      "fetch": ["get_balance_sheet()", "get_cashflow()"]}
+            }
+        }
 
         You MUST respond with **valid JSON only** in the exact format below. No markdown.
-
+        
         Filter Stocks query - filter companies with $1B+ sales and 10% net margin
         Response - 
         {
-        "agentsNeeded": ["CypherAgent", "NewsAgent", "FinancialStmtAgent"],
+        "agentsNeeded": ["SQLAgent"],
         "subTasks": {
-            "CypherAgent": "Filter companies where totalRevenue >= 1000000000 AND netMargin >= 0.10",
-            "NewsAgent": "Get latest news for the filtered companies",
-            "FinancialStmtAgent": "Analyze earnings and cash flow trends for top results"
+            "SQLAgent": "Filter companies where totalRevenue >= 1000000000 AND netMargin >= 0.10",
             }
         }
                       
@@ -89,9 +115,9 @@ def Supervisor( state: State):
         {
         "agentsNeeded": ["NewsAgent", "FinancialStmtAgent", "OutlookAgent"],
         "subTasks": {
-            "NewsAgent": "Get latest news for the AAPL company",
-            "FinancialStmtAgent": "Analyze earnings and cash flow trends."
-            "OutlookAgent": "Understand what the company is up to and what are its future plans."
+            "NewsAgent": {"task": "Summarize the latest news around Apple", "fetch": ["latest news around Apple", "lastest products by Apple"]},
+            "OutlookAgent": {"task": "What do Apple's earning and growth estimates look like?", "fetch": ["get_earnings()", "get_growth_estimates()"]}
+            "FinancialStmtAgent": {"task": "What do Apple's earning look like?", "fetch": ["get_earnings()"]}
             }
         }             
         """),
@@ -110,9 +136,11 @@ def assignAgents(state: State):
     '''
     agentMap = { "NewsAgent": "newsQuery", "FinancialStmtAgent": "finStmtQuery",
                 "OutlookAgent": "outlookQuery", "SectorAgent": "sectorOutlookQuery"}
-    for a, subtask in state["subTasks"].items():
+    for a, subtask_str in state["subTasks"].items():
         print(f"using {a} for this task...")
-        state[agentMap[a]] = subtask
+        # Parse the string representation of the subtask dictionary
+        subtask_dict = json.loads(subtask_str)
+        state[agentMap[a]] = subtask_dict # Assign the parsed dictionary
     return [Send(s, state) for s in state["agentsNeeded"]]
 
 
@@ -120,51 +148,107 @@ def NewsAgent(state: State):
     '''
         Get the recent news based on the query or company name and provide a summarization of it.
     '''
-    with DDGS() as ddgs:
-        results = ddgs.news(
-            query=f"latest news around {state['tickerName']}",
-            max_results=5,
-            region="wt-wt"
-        )
-    raw_news = "\n".join([f"{r['title']}: {r['body']} ({r['date']})" for r in results])
-    
-    newsSummary = llm.invoke([
-        SystemMessage(content=""" You have to answer as a News reporter expert in Finance who takes raw news info and user provided query, and turns it into
-                    clean and understandable news for the common people. Don't say your name. 
-                    Also, your response should be as if you are writing a report. Short and to-the-point with a suitable title."""),
-        HumanMessage(content=f"Query: {state["newsQuery"]}. Here is the raw news info: {raw_news}")
-        ])
-    return { "completedSections": [newsSummary.content] }
+    try:
+      raw_news = ""
+      for f in state["newsQuery"]["fetch"]:
+        with DDGS() as ddgs:
+            results = ddgs.news(
+                query=f,
+                max_results=5,
+                region="wt-wt"
+            )
+        raw_news += "\n".join([f"{r['title']}: {r['body']} ({r['date']})" for r in results])
+      
+      newsSummary = llm.invoke([
+          SystemMessage(content=""" You have to answer as a News reporter expert in Finance who takes raw news info and user provided query, and turns it into
+                      clean and understandable news for the common people. Don't say your name. 
+                      Also, your response should be as if you are writing a report. Short and to-the-point with a suitable title."""),
+          HumanMessage(content=f"Query: {state["newsQuery"]["task"]}. Here is the raw news info: {raw_news}")
+          ])
+      return { "completedSections": [newsSummary.content] }
+    except:
+      return { "completedSections": ["No news found"] }
 
 
 def OutlookAgent(state: State):
-    return {"completedSections": [" "]}
+    '''
+        Retrieves price targets, revenue estimates, analyst recommendations from yfinance and generates insights.
+    '''
+    try:
+        ticker = yf.Ticker(state["tickerName"])
+        outlook_data = {}
+        for fetch_item in state["outlookQuery"]["fetch"]:
+            function_name = fetch_item.replace('()', '')
+            if hasattr(ticker, function_name):
+                method_to_call = getattr(ticker, function_name)
+                outlook_data[function_name] = str(method_to_call())
+            else:
+                outlook_data[function_name] = f"Method {function_name} not found for {state['tickerName']}"
+        
+        outlookSummary = llm.invoke([
+            SystemMessage(content="""You are a financial analyst specializing in market outlooks. 
+                        Based on the provided financial data, generate a concise summary of the company's outlook. 
+                        Focus on key metrics like analyst recommendations, price targets, revenue estimates, and growth estimates. 
+                        Present the information clearly and professionally, like a report. Do not say your name."""),
+            HumanMessage(content=f"Query: {state["outlookQuery"]["task"]}. Here is the outlook data: {outlook_data}")
+        ])
+        return { "completedSections": [outlookSummary.content] }
+    except Exception as e:
+        return { "completedSections": [f"Error fetching outlook data: {e}"] }
 
 
 def SectorAgent(state: State):
     '''
         Get the recent news based on the Sector query requested and provide a summarization of it.
     '''
-    with DDGS() as ddgs:
-        results = ddgs.news(
-            query=f"Query: {state.get('query', '')}",
-            max_results=5,
-            region="wt-wt"
-        )
-    raw_news = "\n".join([f"{r['title']}: {r['body']} ({r['date']})" for r in results])
-    
-    sectorSummary = llm.invoke([
-        SystemMessage(content=""" You have to answer as a News reporter expert in different Industry sectors like Mining, Technology, Hospitality and more
-                       who takes raw news info and user provided query, and then turns it into clean and understandable news for the common people. 
-                       Don't say your name. Also, your response should be as if you are writing a report. Short and to-the-point with a suitable title.
-                      So, suppose if the user query says - what is the outlook of the mining industry?, so, you will explain the current sector outlook."""),
-        HumanMessage(content=f"Query: {state["sectorOutlookQuery"]}. Here is the raw news info: {raw_news}")
-        ])
-    return { "completedSections": [sectorSummary.content] }
+    try: 
+      raw_news = ""
+      for f in state["sectorOutlookQuery"]["fetch"]:
+        with DDGS() as ddgs:
+            results = ddgs.news(
+                query=f,
+                max_results=5,
+                region="wt-wt"
+            )
+        raw_news += "\n".join([f"{r['title']}: {r['body']} ({r['date']})" for r in results])
+        
+      sectorSummary = llm.invoke([
+          SystemMessage(content=""" You have to answer as a News reporter expert in different Industry sectors like Mining, Technology, Hospitality and more
+                        who takes raw news info and user provided query, and then turns it into clean and understandable news for the common people. 
+                        Don't say your name. Also, your response should be as if you are writing a report. Short and to-the-point with a suitable title.
+                        So, suppose if the user query says - what is the outlook of the mining industry?, so, you will explain the current sector outlook."""),
+          HumanMessage(content=f"Query: {state["sectorOutlookQuery"]["task"]}. Here is the raw news info: {raw_news}")
+          ])
+      return { "completedSections": [sectorSummary.content] }
+    except:
+      return { "completedSections": ["No news for this Sector found"] }
 
 
 def FinancialStmtAgent(state: State):
-    return {"completedSections": [" "]}
+    '''
+        Pulls cash flow, earnings, income statements, ratios (yfinance) and generates insights
+    '''
+    try:
+        ticker = yf.Ticker(state["tickerName"])
+        finStmt_data = {}
+        for fetch_item in state["finStmtQuery"]["fetch"]:
+            function_name = fetch_item.replace('()', '')
+            if hasattr(ticker, function_name):
+                method_to_call = getattr(ticker, function_name)
+                finStmt_data[function_name] = str(method_to_call(as_dict=True))
+            else:
+                finStmt_data[function_name] = f"Method {function_name} not found for {state['tickerName']}"
+        
+        finStmtSummary = llm.invoke([
+            SystemMessage(content="""You are a financial analyst specializing in market outlooks. 
+                        Based on the provided financial data, generate a concise summary of the company's outlook. 
+                        Focus on key metrics like analyst recommendations, price targets, revenue estimates, and growth estimates. 
+                        Present the information clearly and professionally, like a report. Do not say your name."""),
+            HumanMessage(content=f"Query: {state["finStmtQuery"]["task"]}. Here is the outlook data: {finStmt_data}")
+        ])
+        return { "completedSections": [finStmtSummary.content] }
+    except Exception as e:
+        return { "completedSections": [f"Error fetching outlook data: {e}"] }
 
 
 def Controller(state: State):
@@ -208,11 +292,12 @@ if __name__ == "__main__":
     app = build_graph()
     
     result = app.invoke({
-        "tickerName": "AAPL",
-        "query": "Compare NVDA and AAPL based on their financials",              
+        "tickerName": "GOOG",
+        "query": "What does the future outlook of Google look like?",              
         "completedSections": [],     
         "finalReport": ""
     }) # type: ignore[reportArgumentType]
 
     print("\n\n")
     print(result["finalReport"])    
+    Markdown(result["finalReport"])
