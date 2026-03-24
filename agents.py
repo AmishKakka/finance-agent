@@ -9,7 +9,6 @@ from ddgs import DDGS
 import os
 import yfinance as yf
 import json
-from IPython.display import Markdown
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 load_dotenv()
@@ -136,11 +135,12 @@ def assignAgents(state: State):
     '''
     agentMap = { "NewsAgent": "newsQuery", "FinancialStmtAgent": "finStmtQuery",
                 "OutlookAgent": "outlookQuery", "SectorAgent": "sectorOutlookQuery"}
+    print(state["subTasks"])
+    
     for a, subtask_str in state["subTasks"].items():
         print(f"using {a} for this task...")
-        # Parse the string representation of the subtask dictionary
         subtask_dict = json.loads(subtask_str)
-        state[agentMap[a]] = subtask_dict # Assign the parsed dictionary
+        state[agentMap[a]] = subtask_dict
     return [Send(s, state) for s in state["agentsNeeded"]]
 
 
@@ -287,17 +287,4 @@ def build_graph():
     return orchestrator.compile()
 
 
-# --------------------------------------------------------------------------- #
-if __name__ == "__main__":
-    app = build_graph()
-    
-    result = app.invoke({
-        "tickerName": "GOOG",
-        "query": "What does the future outlook of Google look like?",              
-        "completedSections": [],     
-        "finalReport": ""
-    }) # type: ignore[reportArgumentType]
-
-    print("\n\n")
-    print(result["finalReport"])    
-    Markdown(result["finalReport"])
+graph_app = build_graph()

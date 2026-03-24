@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Financial Agentic AI</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f7fa;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 40px auto;
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    h1 { text-align: center; color: #1e3a8a; }
+    input, textarea {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+    button {
+      background: #1e40af;
+      color: white;
+      padding: 14px 28px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      width: 100%;
+    }
+    button:hover { background: #1e3a8a; }
+
+    #result {
+      margin-top: 25px;
+      padding: 25px;
+      background: #f8fafc;
+      border-radius: 10px;
+      max-height: 650px;
+      overflow-y: auto;
+      line-height: 1.7;
+      border: 1px solid #e5e7eb;
+    }
+
+    #result h1, #result h2, #result h3 {
+      color: #1e3a8a;
+      margin-top: 1.2em;
+    }
+
+    .loading {
+      text-align: center;
+      color: #666;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Financial Agentic AI</h1>
+    <p>Ask anything about a company or sector</p>
+
+    <input type="text" id="ticker" placeholder="Ticker Symbol (e.g. NVDA, AAPL)" />
+    <textarea id="query" rows="3" placeholder="What do you want to know? (e.g. Status of the Mining Sector, Compare NVDA and AAPL earnings)"></textarea>
+    
+    <button onclick="analyze()">Get Research Report</button>
+
+    <div id="result"></div>
+  </div>
+
+  <script>
+    async function analyze() {
+      const ticker = document.getElementById("ticker").value.trim();
+      const query = document.getElementById("query").value.trim();
+      const resultDiv = document.getElementById("result");
+
+      if (!ticker || !query) {
+        resultDiv.innerHTML = "<p style='color:red;'>Please enter both Ticker and Query</p>";
+        return;
+      }
+
+      resultDiv.innerHTML = "<p class='loading'>Analyzing... Please wait</p>";
+
+      try {
+        const res = await fetch("http://127.0.0.1:8000/research", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tickerName: ticker,
+            query: query
+          })
+        });
+
+        const response = await res.json();
+
+        if (response.status === "success") {
+          resultDiv.innerHTML = `
+            <h3>Report for ${ticker}</h3>
+            <div>${marked.parse(response.report.data)}</div>
+          `;
+        } else {
+          resultDiv.innerHTML = `<p style="color:red;">Error: ${response.message}</p>`;
+        }
+      } catch (err) {
+        resultDiv.innerHTML = `<p style="color:red;">Connection error. Make sure FastAPI server is running on port 8000</p>`;
+      }
+    }
+  </script>
+</body>
+</html>

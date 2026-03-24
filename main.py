@@ -1,6 +1,9 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+from agents import build_graph, graph_app
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
+from IPython.display import Markdown
 
 app = FastAPI(title="Financial Agentic AI")
 
@@ -8,7 +11,6 @@ app = FastAPI(title="Financial Agentic AI")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],      
-    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -19,7 +21,21 @@ class AnalysisRequest(BaseModel):
 
 @app.post("/research")
 async def analyze(request: AnalysisRequest):
-    pass
+    try:
+        response = graph_app.invoke({
+            "tickerName": request.tickerName,
+            "query": request.query
+        }) # type: ignore[reportArgumentType]
+        return {
+            "status": "success",
+            "report": Markdown(response["finalReport"])
+        } # type: ignore[reportArgumentType]
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": Markdown(str(e))
+        } 
+    
 
 @app.get("/")
 def home():
