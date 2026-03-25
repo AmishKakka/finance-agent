@@ -1,119 +1,304 @@
 <!DOCTYPE html>
-<html lang="en">
+<html class="light" lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Financial Agentic AI</title>
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #f4f7fa;
-      margin: 0;
-      padding: 20px;
-    }
-    .container {
-      max-width: 900px;
-      margin: 40px auto;
-      background: white;
-      padding: 30px;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-    }
-    h1 { text-align: center; color: #1e3a8a; }
-    input, textarea {
-      width: 100%;
-      padding: 12px;
-      margin: 10px 0;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      font-size: 16px;
-    }
-    button {
-      background: #1e40af;
-      color: white;
-      padding: 14px 28px;
-      border: none;
-      border-radius: 8px;
-      font-size: 16px;
-      cursor: pointer;
-      width: 100%;
-    }
-    button:hover { background: #1e3a8a; }
-
-    #result {
-      margin-top: 25px;
-      padding: 25px;
-      background: #f8fafc;
-      border-radius: 10px;
-      max-height: 650px;
-      overflow-y: auto;
-      line-height: 1.7;
-      border: 1px solid #e5e7eb;
-    }
-
-    #result h1, #result h2, #result h3 {
-      color: #1e3a8a;
-      margin-top: 1.2em;
-    }
-
-    .loading {
-      text-align: center;
-      color: #666;
-      font-style: italic;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>Financial Agentic AI</h1>
-    <p>Ask anything about a company or sector</p>
-
-    <input type="text" id="ticker" placeholder="Ticker Symbol (e.g. NVDA, AAPL)" />
-    <textarea id="query" rows="3" placeholder="What do you want to know? (e.g. Status of the Mining Sector, Compare NVDA and AAPL earnings)"></textarea>
-    
-    <button onclick="analyze()">Get Research Report</button>
-
-    <div id="result"></div>
-  </div>
-
-  <script>
-    async function analyze() {
-      const ticker = document.getElementById("ticker").value.trim();
-      const query = document.getElementById("query").value.trim();
-      const resultDiv = document.getElementById("result");
-
-      if (!ticker || !query) {
-        resultDiv.innerHTML = "<p style='color:red;'>Please enter both Ticker and Query</p>";
-        return;
-      }
-
-      resultDiv.innerHTML = "<p class='loading'>Analyzing... Please wait</p>";
-
-      try {
-        const res = await fetch("http://127.0.0.1:8000/research", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            tickerName: ticker,
-            query: query
-          })
-        });
-
-        const response = await res.json();
-
-        if (response.status === "success") {
-          resultDiv.innerHTML = `
-            <h3>Report for ${ticker}</h3>
-            <div>${marked.parse(response.report.data)}</div>
-          `;
-        } else {
-          resultDiv.innerHTML = `<p style="color:red;">Error: ${response.message}</p>`;
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Financial Agentic AI</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-tertiary-fixed": "#390b00",
+                        "inverse-primary": "#b3c5ff",
+                        "outline": "#757682",
+                        "on-error": "#ffffff",
+                        "on-secondary-container": "#007350",
+                        "surface-container-low": "#f6f3f2",
+                        "surface-variant": "#e4e2e1",
+                        "on-secondary-fixed": "#002114",
+                        "secondary-fixed-dim": "#5bdda8",
+                        "tertiary-fixed": "#ffdbd0",
+                        "on-surface-variant": "#444650",
+                        "primary-fixed-dim": "#b3c5ff",
+                        "on-primary-container": "#758dd5",
+                        "on-secondary": "#ffffff",
+                        "background": "#fbf9f8",
+                        "primary": "#00113a",
+                        "outline-variant": "#c5c6d2",
+                        "secondary-container": "#7afac3",
+                        "on-background": "#1b1c1c",
+                        "inverse-on-surface": "#f3f0f0",
+                        "on-error-container": "#93000a",
+                        "error-container": "#ffdad6",
+                        "surface-tint": "#435b9f",
+                        "surface-container-high": "#eae8e7",
+                        "on-tertiary": "#ffffff",
+                        "tertiary-container": "#501300",
+                        "on-primary-fixed": "#00174a",
+                        "surface-container-highest": "#e4e2e1",
+                        "surface-bright": "#fbf9f8",
+                        "surface-container": "#f0eded",
+                        "on-secondary-fixed-variant": "#005138",
+                        "on-tertiary-container": "#d37758",
+                        "tertiary-fixed-dim": "#ffb59e",
+                        "error": "#ba1a1a",
+                        "secondary-fixed": "#7afac3",
+                        "secondary": "#006c4b",
+                        "on-primary": "#ffffff",
+                        "surface": "#fbf9f8",
+                        "on-tertiary-fixed-variant": "#783018",
+                        "inverse-surface": "#303030",
+                        "tertiary": "#2d0700",
+                        "primary-container": "#002366",
+                        "surface-dim": "#dcd9d9",
+                        "primary-fixed": "#dbe1ff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-fixed-variant": "#2a4386",
+                        "on-surface": "#1b1c1c"
+                    },
+                    fontFamily: {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                    borderRadius: { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" },
+                },
+            },
         }
-      } catch (err) {
-        resultDiv.innerHTML = `<p style="color:red;">Connection error. Make sure FastAPI server is running on port 8000</p>`;
-      }
-    }
-  </script>
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+
+        body { font-family: 'Inter', sans-serif; background-color: #fbf9f8; }
+
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; }
+        
+        .markdown-container h1, .markdown-container h2, .markdown-container h3 {
+            color: #00113a; /* text-primary */
+            font-weight: 900;
+            letter-spacing: -0.025em;
+            margin-top: 1.5em;
+            margin-bottom: 0.75em;
+        }
+        .markdown-container h1 { font-size: 1.5rem; }
+        .markdown-container h2 { font-size: 1.25rem; }
+        .markdown-container h3 { font-size: 1.125rem; }
+        .markdown-container p { margin-bottom: 1rem; }
+        .markdown-container ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 1rem; }
+        .markdown-container ol { list-style-type: decimal; margin-left: 1.5rem; margin-bottom: 1rem; }
+        .markdown-container li { margin-bottom: 0.5rem; }
+        .markdown-container strong { color: #00113a; font-weight: 700; }
+        .markdown-container a { color: #006c4b; text-decoration: underline; }
+    </style>
+</head>
+
+<body class="text-on-surface overflow-hidden bg-background">
+    <header class="bg-white/80 backdrop-blur-md dark:bg-primary/90 docked full-width top-0 z-50 flex justify-between items-center w-full px-8 py-3.5 border-b border-outline-variant/30 fixed">
+        <div class="flex items-center gap-12">
+            <div class="flex items-center gap-2">
+                <span class="text-lg font-black text-primary dark:text-white uppercase tracking-tighter">Financial Agentic AI</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex h-screen pt-[61px]">
+        <aside class="bg-surface-container-lowest h-full w-72 border-r border-outline-variant/30 flex flex-col hidden md:flex">
+            <div class="px-6 mt-[20%]">
+                <div class="relative">
+                    <input class="w-full bg-surface-container-low border-none focus:ring-1 focus:ring-primary/20 text-xs font-bold uppercase tracking-widest p-3 pr-10 text-primary placeholder:text-outline/50" placeholder="Company Name..." type="text" />
+                    <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-outline text-sm">search</span>
+                </div>
+            </div>
+            <div class="flex-1 px-4 space-y-1.5">
+                </div>
+            <div class="p-6 mt-auto border-t border-outline-variant/20">
+                <button class="w-full py-3.5 bg-secondary text-white font-bold text-xs uppercase tracking-widest hover:brightness-110 active:scale-[0.98] transition-all shadow-md shadow-secondary/10">
+                    New Analysis
+                </button>
+            </div>
+        </aside>
+
+        <main class="flex-1 flex flex-col relative bg-surface-container-lowest overflow-hidden">
+            <div id="chat-scroll-container" class="flex-1 overflow-y-auto scrollbar-hide px-6 py-10">
+                <div id="chat-history" class="max-w-3xl mx-auto space-y-16">
+                    <div class="flex gap-6 items-start">
+                        <div class="w-10 h-10 flex-shrink-0 bg-secondary text-white flex items-center justify-center shadow-lg shadow-secondary/20">
+                            <span class="material-symbols-outlined text-[20px]">auto_awesome</span>
+                        </div>
+                        <div class="flex-1 space-y-4">
+                            <div class="flex items-baseline gap-3 mb-3">
+                                <h4 class="text-xs font-black uppercase tracking-widest text-secondary">System Ready</h4>
+                            </div>
+                            <p class="text-on-surface-variant leading-relaxed text-base">Enter a ticker symbol and your query below to generate a comprehensive research report.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-8 border-t border-outline-variant/20 bg-white">
+                <div class="max-w-3xl mx-auto">
+                    <div class="relative border border-outline-variant/40 shadow-sm focus-within:border-primary transition-all bg-surface-container-low flex flex-col">
+                        <input type="text" id="ticker-input" class="w-full bg-transparent border-b border-outline-variant/30 focus:ring-0 px-6 py-3 text-sm font-black text-primary placeholder:text-outline/60 uppercase tracking-widest" placeholder="Ticker Symbol (e.g. NVDA, AAPL)" />
+                        
+                        <textarea id="chat-input" class="w-full bg-transparent border-none focus:ring-0 px-6 py-5 pr-40 text-sm font-medium text-primary placeholder:text-outline/60 resize-none h-[80px]" placeholder="What do you want to know? (e.g. Compare NVDA and AAPL earnings)"></textarea>
+                        
+                        <div class="absolute right-4 bottom-4 flex items-center gap-3">
+                            <!-- <button class="p-2 text-outline hover:text-primary transition-colors">
+                                <span class="material-symbols-outlined text-[20px]">attach_file</span>
+                            </button> -->
+                            <button id="send-button" class="bg-primary hover:bg-[#002366] text-white px-6 py-2.5 flex items-center gap-2.5 text-xs font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-primary/20">
+                                <span>Execute</span>
+                                <span class="material-symbols-outlined text-sm">send</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex justify-between items-center px-1">
+                        <div class="flex gap-6">
+                            <div class="flex items-center gap-2 text-[10px] font-black text-outline uppercase tracking-wider">
+                                <span class="w-1.5 h-1.5 rounded-full bg-secondary"></span> API Status: Connected
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const chatHistory = document.getElementById('chat-history');
+            const scrollContainer = document.getElementById('chat-scroll-container');
+            const chatInput = document.getElementById('chat-input');
+            const tickerInput = document.getElementById('ticker-input');
+            const sendButton = document.getElementById('send-button');
+
+            // Helper to scroll to bottom smoothly
+            function scrollToBottom() {
+                setTimeout(() => {
+                    scrollContainer.scrollTo({
+                        top: scrollContainer.scrollHeight,
+                        behavior: 'smooth'
+                    });
+                }, 50);
+            }
+
+            // Append User Message
+            function appendUserMessage(ticker, query) {
+                const timeString = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+                
+                const userHtml = `
+                    <div class="flex gap-6 items-start group">
+                        <div class="w-10 h-10 flex-shrink-0 bg-primary-container text-primary-fixed flex items-center justify-center font-black text-xs shadow-sm">
+                            JD
+                        </div>
+                        <div class="flex-1 pt-1.5">
+                            <div class="flex items-baseline gap-3 mb-2">
+                                <h4 class="text-xs font-black uppercase tracking-widest text-primary">Inquiry: ${ticker}</h4>
+                                <span class="text-[10px] text-outline font-medium uppercase tracking-tighter">${timeString} GMT-5 • SECURED</span>
+                            </div>
+                            <p class="text-primary font-medium leading-relaxed text-lg whitespace-pre-wrap">${query}</p>
+                        </div>
+                    </div>
+                `;
+                chatHistory.insertAdjacentHTML('beforeend', userHtml);
+                scrollToBottom();
+            }
+
+            // Append a placeholder message while loading, returns the IDs for later updating
+            function appendAILoadingMessage() {
+                const messageId = 'msg-' + Date.now();
+                const contentId = 'content-' + messageId;
+                const timeString = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+
+                const aiHtml = `
+                    <div class="flex gap-6 items-start" id="${messageId}">
+                        <div class="w-10 h-10 flex-shrink-0 bg-secondary text-white flex items-center justify-center shadow-lg shadow-secondary/20">
+                            <span class="material-symbols-outlined text-[20px]">auto_awesome</span>
+                        </div>
+                        <div class="flex-1 space-y-4">
+                            <div class="flex items-baseline gap-3 mb-3">
+                                <h4 class="text-xs font-black uppercase tracking-widest text-secondary">Analysis Report</h4>
+                                <span class="text-[10px] text-outline font-medium uppercase tracking-tighter">${timeString} • Processing...</span>
+                            </div>
+                            <div class="text-on-surface-variant leading-relaxed text-base markdown-container" id="${contentId}">
+                                <p class="animate-pulse text-secondary font-bold">Querying ledger and analyzing data... Please wait.</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                chatHistory.insertAdjacentHTML('beforeend', aiHtml);
+                scrollToBottom();
+                return contentId;
+            }
+
+            // Core submit handler
+            async function handleSubmission() {
+                const ticker = tickerInput.value.trim();
+                const query = chatInput.value.trim();
+                
+                if (!query) {
+                    alert("Please enter a Query.");
+                    return; 
+                }
+
+                // Clear inputs
+                chatInput.value = '';
+
+                appendUserMessage(ticker, query);
+
+                const contentId = appendAILoadingMessage();
+                const contentContainer = document.getElementById(contentId);
+
+                try {
+                    const res = await fetch("http://127.0.0.1:8000/research", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            tickerName: ticker,
+                            query: query
+                        })
+                    });
+
+                    const response = await res.json();
+
+                    if (response.status === "success") {
+                        contentContainer.innerHTML = marked.parse(response.report.data);
+                    } else {
+                        contentContainer.innerHTML = `<p class="text-error font-bold">Error: ${response.message}</p>`;
+                    }
+                } catch (err) {
+                    contentContainer.innerHTML = `<p class="text-error font-bold">Connection error. Make sure FastAPI server is running on port 8000.</p>`;
+                }
+                scrollToBottom();
+            }
+
+            // Event Listeners
+            sendButton.addEventListener('click', handleSubmission);
+
+            chatInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmission();
+                }
+            });
+            
+            tickerInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    chatInput.focus();
+                }
+            });
+        });
+    </script>
 </body>
 </html>

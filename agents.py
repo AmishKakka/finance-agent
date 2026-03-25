@@ -60,7 +60,7 @@ def Supervisor( state: State):
         Agent Capabilities - 
         1. NewsAgent - Get the recent news based on the query or company name provided by the user and provide a summarization of it.
         2. FinancialStmtAgent - Pulls cash flow, earnings, income statements, balance sheet from yfinance and generates insights. 
-                Specifically, it can fetch - get_income_stmt(), get_balance_sheet(), get_cashflow(), get_earnings(), get_earnings_dates().
+                Specifically, it can fetch - get_income_stmt(), get_balance_sheet(), get_cashflow(), get_earnings_dates().
         3. OutlookAgent - Retrieves price targets, revenue estimates, analyst recommendations from yfinance and generates insights.
                 Specifically, it can fetch - get_recommendations_summary(), get_analyst_price_targets(), get_revenue_estimate(), get_growth_estimates()
         4. SectorAgent — Sector/industry level news and forward-looking outlook.
@@ -75,7 +75,7 @@ def Supervisor( state: State):
         - For any agent that you select to work with, provide "task" and "fetch" arguments. The "fetch" argument is what it needs to fetch from
         its resource. So, if it is - 
                       1. NewsAgent - {"task": "Summarize the latest news around Apple", "fetch": ["latest news around Apple", "lastest products by Apple"]}
-                      2. FinancialStmtAgent - {"task": "What do Apple's earning look like?", "fetch": ["get_earnings()"]}
+                      2. FinancialStmtAgent - {"task": "What do Apple's earning look like?", "fetch": ["get_income_stmt()"]}
                       3. SectorAgent - {"task": "Summarize the Govt's hand in Mining industry", "fetch": ["developments in Mining industry", "What is the Govt. doing for Mining companies"]}
                       4. OutlookAgent -  {"task": "what are analysts' view on Google?", "fetch": ["get_recommendations_summary()"]}
                       
@@ -115,7 +115,7 @@ def Supervisor( state: State):
         "agentsNeeded": ["NewsAgent", "FinancialStmtAgent", "OutlookAgent"],
         "subTasks": {
             "NewsAgent": {"task": "Summarize the latest news around Apple", "fetch": ["latest news around Apple", "lastest products by Apple"]},
-            "OutlookAgent": {"task": "What do Apple's earning and growth estimates look like?", "fetch": ["get_earnings()", "get_growth_estimates()"]}
+            "OutlookAgent": {"task": "What do Apple's earning and growth estimates look like?", "fetch": ["get_income_stmt()", "get_growth_estimates()"]}
             "FinancialStmtAgent": {"task": "What do Apple's earning look like?", "fetch": ["get_earnings()"]}
             }
         }             
