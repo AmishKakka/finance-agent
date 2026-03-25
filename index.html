@@ -115,9 +115,12 @@
         <aside class="bg-surface-container-lowest h-full w-72 border-r border-outline-variant/30 flex flex-col hidden md:flex">
             <div class="px-6 mt-[20%]">
                 <div class="relative">
-                    <input class="w-full bg-surface-container-low border-none focus:ring-1 focus:ring-primary/20 text-xs font-bold uppercase tracking-widest p-3 pr-10 text-primary placeholder:text-outline/50" placeholder="Company Name..." type="text" />
-                    <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-outline text-sm">search</span>
-                </div>
+                <input id="sidebar-search" autocomplete="off" class="w-full bg-surface-container-low border-none focus:ring-1 focus:ring-primary/20 text-xs font-bold uppercase tracking-widest p-3 pr-10 text-primary placeholder:text-outline/50" placeholder="Company Name..." type="text" />
+                <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-outline text-sm pointer-events-none">search</span>
+                
+                <ul id="search-suggestions" class="absolute z-50 w-full mt-1 bg-white border border-outline-variant/30 shadow-lg hidden max-h-48 overflow-y-auto scrollbar-hide">
+                </ul>
+            </div>
             </div>
             <div class="flex-1 px-4 space-y-1.5">
                 </div>
@@ -175,130 +178,191 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const chatHistory = document.getElementById('chat-history');
-            const scrollContainer = document.getElementById('chat-scroll-container');
-            const chatInput = document.getElementById('chat-input');
-            const tickerInput = document.getElementById('ticker-input');
-            const sendButton = document.getElementById('send-button');
+      document.addEventListener('DOMContentLoaded', () => {
+        const chatHistory = document.getElementById('chat-history');
+        const scrollContainer = document.getElementById('chat-scroll-container');
+        const chatInput = document.getElementById('chat-input');
+        const tickerInput = document.getElementById('ticker-input');
+        const sendButton = document.getElementById('send-button');
+        const searchInputSidebar = document.getElementById('sidebar-search');
+        const suggestionsBox = document.getElementById('search-suggestions');
 
-            // Helper to scroll to bottom smoothly
-            function scrollToBottom() {
-                setTimeout(() => {
-                    scrollContainer.scrollTo({
-                        top: scrollContainer.scrollHeight,
-                        behavior: 'smooth'
-                    });
-                }, 50);
-            }
+        let debounceTimer;
 
-            // Append User Message
-            function appendUserMessage(ticker, query) {
-                const timeString = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+        searchInputSidebar.addEventListener('input', function() {
+          // Clear the previous timer on every keystroke
+          clearTimeout(debounceTimer); 
+          const query = this.value.trim();
+
+          // If input is empty, clear and hide the dropdown immediately
+          if (!query) {
+              suggestionsBox.classList.add('hidden');
+              suggestionsBox.innerHTML = '';
+              return;
+          }
+
+          // Start a new timer. The fetch will only run if the user stops typing for 1500ms.
+          debounceTimer = setTimeout(async () => {
+            try {
+              const response = await fetch(`http://127.0.0.1:8000/suggestions?q=${encodeURIComponent(query)}`);
+              
+              if (!response.ok) throw new Error('API Error');
+              
+              const result = await response.json();
+              
+              // Clear previous suggestions
+              suggestionsBox.innerHTML = ''; 
+
+              if (result.status === "success" && result.data.length > 0) {
+                suggestionsBox.classList.remove('hidden');
                 
-                const userHtml = `
-                    <div class="flex gap-6 items-start group">
-                        <div class="w-10 h-10 flex-shrink-0 bg-primary-container text-primary-fixed flex items-center justify-center font-black text-xs shadow-sm">
-                            JD
-                        </div>
-                        <div class="flex-1 pt-1.5">
-                            <div class="flex items-baseline gap-3 mb-2">
-                                <h4 class="text-xs font-black uppercase tracking-widest text-primary">Inquiry: ${ticker}</h4>
-                                <span class="text-[10px] text-outline font-medium uppercase tracking-tighter">${timeString} GMT-5 • SECURED</span>
-                            </div>
-                            <p class="text-primary font-medium leading-relaxed text-lg whitespace-pre-wrap">${query}</p>
-                        </div>
-                    </div>
-                `;
-                chatHistory.insertAdjacentHTML('beforeend', userHtml);
-                scrollToBottom();
+                result.data.forEach(match => {
+                  const li = document.createElement('li');
+                  li.className = 'px-4 py-3 text-xs font-bold text-primary hover:bg-surface-container-low cursor-pointer border-b border-outline-variant/10 last:border-0 transition-colors';
+                  li.textContent = match;
+                  
+                  li.addEventListener('click', () => {
+                      searchInputSidebar.value = match;
+                      suggestionsBox.classList.add('hidden');
+                  });
+                  suggestionsBox.appendChild(li);
+                });
+              } 
+              else {
+                suggestionsBox.classList.remove('hidden');
+                suggestionsBox.innerHTML = '<li class="px-4 py-3 text-xs font-medium text-outline italic">No matching records found</li>';
+              }
+            } 
+            catch (error) {
+              console.error("Failed to fetch dynamic suggestions:", error);
             }
+          }, 1500);
+      });
 
-            // Append a placeholder message while loading, returns the IDs for later updating
-            function appendAILoadingMessage() {
-                const messageId = 'msg-' + Date.now();
-                const contentId = 'content-' + messageId;
-                const timeString = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+      // Hide the suggestions box if the user clicks anywhere else on the page
+      document.addEventListener('click', (e) => {
+          if (!searchInputSidebar.contains(e.target) && !suggestionsBox.contains(e.target)) {
+              suggestionsBox.classList.add('hidden');
+          }
+      });
 
-                const aiHtml = `
-                    <div class="flex gap-6 items-start" id="${messageId}">
-                        <div class="w-10 h-10 flex-shrink-0 bg-secondary text-white flex items-center justify-center shadow-lg shadow-secondary/20">
-                            <span class="material-symbols-outlined text-[20px]">auto_awesome</span>
-                        </div>
-                        <div class="flex-1 space-y-4">
-                            <div class="flex items-baseline gap-3 mb-3">
-                                <h4 class="text-xs font-black uppercase tracking-widest text-secondary">Analysis Report</h4>
-                                <span class="text-[10px] text-outline font-medium uppercase tracking-tighter">${timeString} • Processing...</span>
-                            </div>
-                            <div class="text-on-surface-variant leading-relaxed text-base markdown-container" id="${contentId}">
-                                <p class="animate-pulse text-secondary font-bold">Querying ledger and analyzing data... Please wait.</p>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                chatHistory.insertAdjacentHTML('beforeend', aiHtml);
-                scrollToBottom();
-                return contentId;
-            }
+        // Helper to scroll to bottom smoothly
+        function scrollToBottom() {
+          setTimeout(() => {
+              scrollContainer.scrollTo({
+                  top: scrollContainer.scrollHeight,
+                  behavior: 'smooth'
+              });
+          }, 50);
+        }
 
-            // Core submit handler
-            async function handleSubmission() {
-                const ticker = tickerInput.value.trim();
-                const query = chatInput.value.trim();
-                
-                if (!query) {
-                    alert("Please enter a Query.");
-                    return; 
-                }
+        // Append User Message
+        function appendUserMessage(ticker, query) {
+          const timeString = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+          
+          const userHtml = `
+              <div class="flex gap-6 items-start group">
+                  <div class="w-10 h-10 flex-shrink-0 bg-primary-container text-primary-fixed flex items-center justify-center font-black text-xs shadow-sm">
+                      JD
+                  </div>
+                  <div class="flex-1 pt-1.5">
+                      <div class="flex items-baseline gap-3 mb-2">
+                          <h4 class="text-xs font-black uppercase tracking-widest text-primary">Inquiry: ${ticker}</h4>
+                          <span class="text-[10px] text-outline font-medium uppercase tracking-tighter">${timeString} GMT-5 • SECURED</span>
+                      </div>
+                      <p class="text-primary font-medium leading-relaxed text-lg whitespace-pre-wrap">${query}</p>
+                  </div>
+              </div>
+          `;
+          chatHistory.insertAdjacentHTML('beforeend', userHtml);
+          scrollToBottom();
+        }
 
-                // Clear inputs
-                chatInput.value = '';
+        // Append a placeholder message while loading, returns the IDs for later updating
+        function appendLoadingMessage() {
+          const messageId = 'msg-' + Date.now();
+          const contentId = 'content-' + messageId;
+          const timeString = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
 
-                appendUserMessage(ticker, query);
+          const aiHtml = `
+              <div class="flex gap-6 items-start" id="${messageId}">
+                  <div class="w-10 h-10 flex-shrink-0 bg-secondary text-white flex items-center justify-center shadow-lg shadow-secondary/20">
+                      <span class="material-symbols-outlined text-[20px]">auto_awesome</span>
+                  </div>
+                  <div class="flex-1 space-y-4">
+                      <div class="flex items-baseline gap-3 mb-3">
+                          <h4 class="text-xs font-black uppercase tracking-widest text-secondary">Analysis Report</h4>
+                          <span class="text-[10px] text-outline font-medium uppercase tracking-tighter">${timeString} • Processing...</span>
+                      </div>
+                      <div class="text-on-surface-variant leading-relaxed text-base markdown-container" id="${contentId}">
+                          <p class="animate-pulse text-secondary font-bold">Querying ledger and analyzing data... Please wait.</p>
+                      </div>
+                  </div>
+              </div>
+          `;
+          chatHistory.insertAdjacentHTML('beforeend', aiHtml);
+          scrollToBottom();
+          return contentId;
+        }
 
-                const contentId = appendAILoadingMessage();
-                const contentContainer = document.getElementById(contentId);
+        // Core submit handler
+        async function handleSubmission() {
+          const ticker = tickerInput.value.trim();
+          const query = chatInput.value.trim();
+          
+          if (!query && !ticker) {
+              alert("Please enter a Query and Ticker Name.");
+              return; 
+          }
 
-                try {
-                    const res = await fetch("http://127.0.0.1:8000/research", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            tickerName: ticker,
-                            query: query
-                        })
-                    });
+          // Clear inputs
+          chatInput.value = '';
 
-                    const response = await res.json();
+          appendUserMessage(ticker, query);
 
-                    if (response.status === "success") {
-                        contentContainer.innerHTML = marked.parse(response.report.data);
-                    } else {
-                        contentContainer.innerHTML = `<p class="text-error font-bold">Error: ${response.message}</p>`;
-                    }
-                } catch (err) {
-                    contentContainer.innerHTML = `<p class="text-error font-bold">Connection error. Make sure FastAPI server is running on port 8000.</p>`;
-                }
-                scrollToBottom();
-            }
+          const contentId = appendLoadingMessage();
+          const contentContainer = document.getElementById(contentId);
 
-            // Event Listeners
-            sendButton.addEventListener('click', handleSubmission);
+          try {
+              const res = await fetch("http://127.0.0.1:8000/research", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                      tickerName: ticker,
+                      query: query
+                  })
+              });
 
-            chatInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSubmission();
-                }
-            });
-            
-            tickerInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    chatInput.focus();
-                }
-            });
+              const response = await res.json();
+
+              if (response.status === "success") {
+                  contentContainer.innerHTML = marked.parse(response.report.data);
+              } else {
+                  contentContainer.innerHTML = `<p class="text-error font-bold">Error: ${response.message}</p>`;
+              }
+          } catch (err) {
+              contentContainer.innerHTML = `<p class="text-error font-bold">Connection error. Make sure FastAPI server is running on port 8000.</p>`;
+          }
+          scrollToBottom();
+        }
+
+        // Event Listeners
+        sendButton.addEventListener('click', handleSubmission);
+
+        chatInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              handleSubmission();
+          }
         });
+        
+        tickerInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+              e.preventDefault();
+              chatInput.focus();
+          }
+        });
+      });
     </script>
 </body>
 </html>
