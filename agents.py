@@ -6,7 +6,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from typing import Any, DefaultDict, List, TypedDict, Annotated
 from langchain_typesafe import Noul, TypeSafeClassifier
 import os
-from time import time
+from datetime import datetime
 from tavily import TavilyClient
 import yfinance as yf
 from rich.console import Console
@@ -101,7 +101,7 @@ class Agents:
         }
         agents_needed = []
         for name, prob in agents_prob.items():
-                    if prob >= 0.73:
+                    if prob >= 0.53:
                         agents_needed.append(agent_map[name])
         return {
             "agentsProb": agents_prob,
@@ -194,12 +194,15 @@ class Agents:
             ticker = yf.Ticker(state["tickerName"])
             finStmt_data = {}
             for function_name, noulResponse in resp.nouls.items():
-                if noulResponse.noul >= 0.85:
+                # print(function_name, noulResponse)
+                # Lowered the Noul confidence, becuase sometimes for some stocks it works at 0.85 and not for others
+                if noulResponse.noul >= 0.65:
                     if hasattr(ticker, function_name):
                         method_to_call = getattr(ticker, function_name)
                         finStmt_data[function_name] = str(method_to_call(as_dict=True))
                     else:
                         finStmt_data[function_name] = f"Method {function_name} not found for {state['tickerName']}"
+            print(finStmt_data)
             return { 
                 "completedSections": [{
                     "agent": "FinancialStmtAgent",
@@ -267,7 +270,7 @@ class Agents:
                 }
             })
             for function_name, noulResponse in resp.nouls.items():
-                if noulResponse.noul >= 0.85:
+                if noulResponse.noul >= 0.65:
                     if hasattr(ticker, function_name):
                         method_to_call = getattr(ticker, function_name)
                         outlook_data[function_name] = str(method_to_call())
@@ -335,10 +338,15 @@ class Agents:
         )
 
         report = self.llm.invoke([
-            SystemMessage(content="""You are a senior equity research analyst.
+            SystemMessage(content=f"""You are a senior equity research analyst.
                 Write a clear, professional investment research note.
                 Use the evidence below. Give more weight to higher-relevance sections.
-                Structure the report with short headings. Be concise and factual."""),
+                Structure the report with short headings. Be concise and factual.
+                
+                Today's Date: {datetime.now()}
+                If the data you receive whether news or financial data and 
+                the date or year on them appears to be far-behind today's date, then acknowledge the fact gracefully.
+                Work on the evidence to provide insights but also with that acknowledge the date difference."""),
                         HumanMessage(content=f"""Ticker: {state['tickerName']}
                 User question: {state['query']}
 
@@ -377,17 +385,17 @@ class Agents:
         return orchestrator.compile()
 
 
-if __name__ == "__main__":
-    agents = Agents()
-    graph = agents.buildGraph()
-    initialState: State = {
-        "tickerName": "",
-        "query": "Outlook around Semiconductor space",
-        "agentsProb": DefaultDict(),
-        "agentsNeeded": [],
-        "completedSections": [],
-        "finalReport": "",
-    }
-    queryResponse = graph.invoke(initialState)
-    console = Console()
-    console.print(Markdown(queryResponse["finalReport"])) 
+# if __name__ == "__main__":
+#     agents = Agents()
+#     graph = agents.buildGraph()
+#     initialState: State = {
+#         "tickerName": "",
+#         "query": "Outlook around Semiconductor space",
+#         "agentsProb": DefaultDict(),
+#         "agentsNeeded": [],
+#         "completedSections": [],
+#         "finalReport": "",
+#     }
+#     queryResponse = graph.invoke(initialState)
+#     console = Console()
+#     console.print(Markdown(queryResponse["finalReport"])) 
