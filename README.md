@@ -1,55 +1,59 @@
-# finance-agent
+# Multi-Agent Financial Research System with LangGraph
 
-**Multi-Agent Financial Research System with LangGraph**
+Takes a company ticker + user query and produces a focused investment research report by routing to specialized agents.
 
-An agentic AI system that takes a prompt (e.g., “Show me positive cash flow companies with >20% profit margin in tech sector”) and intelligently routes it through specialized agents to deliver a complete investment research report.
+## How it works
 
+1. **Supervisor (Jev)** – Decides which agents are needed using calibrated probabilities
+2. **Selected agents run in parallel** (LangGraph)
+3. **Controller** – One call to Gemini synthesizes all findings into a clean report
 
-![High-level Architecture](./Highlevel%20plan%20v_0.jpeg)
-*High-level plan v0*
+Only the relevant agents are used, keeping it fast and cheap.
 
-## Features
+## Agents
 
-- **Intelligent Task Decomposition**: Supervisor agent analyzes the user prompt and decides which specialized agents are needed
-- **Dynamic Multi-Agent Orchestration** via LangGraph (conditional routing + parallel execution)
+| Agent | What it does |
+|-------|--------------|
+| **NewsAgent** | Recent news & events (DuckDuckGo) |
+| **FinancialStmtAgent** | Income statement, balance sheet, cash flow, earnings (yfinance) |
+| **OutlookAgent** | Analyst recommendations, price targets, revenue & growth estimates (yfinance) |
+| **SectorAgent** | Sector / industry level news & outlook |
 
-- **5 Specialized Agents**:
-  - **NewsAgent** — Fetches & summarizes latest news using Tavily Web search.
-  - **Financial Stmt. Agent** — Pulls cash flow, earnings, income statements, ratios (yfinance) + generates insights.
-  - **SQL Agent** — Natural-language → SQL queries on Duckdb (filters by market cap, sector, profit margin, cashflow positivity, etc.)
-  - **Outlook Agent** — Price targets, revenue estimates, analyst recommendations & future outlook.
-  - **Sector Agent** — Sector/industry level news and forward-looking outlook.
-- **Controller / Synthesizer** — Combines all agent outputs into a polished, actionable final report with confidence scores and sources.
+Each sub–agent can also use Jev internally to decide which exact data points to fetch.
 
-## Architecture
+## Example
 
-The system follows a **Supervisor → Dynamic Routing → Controller** pattern:
+**Ticker:** `AAPL`
 
-1. **User Prompt** → **Supervisor** (LLM planner)
-2. Supervisor decides which agents to activate (can be 1, 2, or all 5)
-3. Selected agents run **in parallel** where possible
-4. All outputs flow to **Controller** for final synthesis
-5. Result: clean Markdown report
+**Query:**  `Is Apple cash-flow positive? What is the current outlook around it?`
 
-This design allows the system to be efficient (only calls necessary agents) while remaining extremely flexible.
+**Jev decides:**
 
-## Tech Stack
+- FinancialStmtAgent → 0.98
+- OutlookAgent → 0.84
+- NewsAgent → 0.19
+- SectorAgent → 0.05
 
-- **Orchestration**: LangGraph
-- **SQL Database**: Duck DB
-- **LLM**: Gemini 2.5 Flash (via Google API)
-- **Data Sources**: yfinance, DuckDuckGo Search
-- **Backend**: Python, Pydantic
-- **Persistence**: SQLite / Redis (LangGraph checkpointer)
+Only the two high-probability agents run → final report.
 
-## How It Works (Example Flow)
+**Routing / Decisions**: TypeSafe's Jev model
 
-**User Prompt**:  
-"I want positive cash-flow tech companies with profit margin >20% and strong sector outlook."
+**Orchestration**: LangGraph
 
-**Supervisor decides**:
-- SQL Agent (filtering)
-- Financial Stmt Agent (cashflow validation)
-- Sector Agent (sector outlook)
+**LLM (final report only)**: Gemini 2.5 Flash
 
-All agents run → Controller synthesizes → Final report delivered.
+**Data**: yfinance + DuckDuckGo Search
+
+## Installation
+
+```bash
+git clone https://github.com/AmishKakka/finance-agent.git
+cd finance-agent
+python -m venv venv
+source ./venv/bin/activate
+pip install -r requirements.txt
+
+# Add your keys to .env
+GEMINI-API-KEY=...
+JEV-API-KEY=...
+```

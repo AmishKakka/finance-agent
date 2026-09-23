@@ -2,12 +2,10 @@ langchain
 langchain_core
 langgraph
 langchain-google-genai
+langchain-typesafe
 yfinance
 ddgs
 python-dotenv
 fastapi
-uvicorn
-duckdb
 polars
-pandas
 numpy

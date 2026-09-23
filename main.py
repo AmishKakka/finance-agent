@@ -1,13 +1,13 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from yfinance import ticker
-from agents import build_graph, graph_app
+from agents import Agents
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from IPython.display import Markdown
-from setup_duck_db import fetchTickers
+from setup_data import fetchTickers
 
-app = FastAPI(title="Financial Agentic AI")
+app = FastAPI(title="Warren – Financial Agentic AI")
 
 # Allow frontend to call this API
 app.add_middleware(

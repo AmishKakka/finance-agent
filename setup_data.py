@@ -1,8 +1,7 @@
 import time
 import yfinance as yf
-import duckdb
 import polars as pl
-print("DuckDB import successful!!!")
+print("import successful!!!")
 
 
 data_points = ['symbol', 'shortName', 'currency', 'previousClose', 'open', 'dayLow', 'dayHigh', 'regularMarketPreviousClose',
@@ -53,10 +52,6 @@ def formatDatatoFile(data:list[list]):
     df = df.unique(subset=["Symbol"], keep="first")
     df.write_csv("stocksData.csv")
     print("Saved data to csv file.")
-
-    duckdb.read_csv("stocksData.csv")
-    print("Read data via Duck DB...")
-
 
 def download_data(stocks):
     '''
