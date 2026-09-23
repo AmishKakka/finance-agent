@@ -4,9 +4,10 @@ from langgraph.graph import StateGraph, START, END
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from typing import Any, DefaultDict, List, TypedDict, Annotated
-from ddgs import DDGS
 from langchain_typesafe import Noul, TypeSafeClassifier
 import os
+from time import time
+from tavily import TavilyClient
 import yfinance as yf
 from rich.console import Console
 from rich.markdown import Markdown
@@ -42,7 +43,9 @@ class Agents:
     def __init__(self):
         gemini_key = os.getenv("GEMINI-API-KEY") or ""
         jev_key = os.getenv("JEV-API-KEY") or ""
+        tavily_key = os.getenv("TAVILY-API-KEY") or ""
         self.llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", api_key=gemini_key)
+        self.tavily = TavilyClient(tavily_key)
         self.supervisor = TypeSafeClassifier(api_key=jev_key)
 
     def Supervisor(self, state: State):
@@ -110,17 +113,19 @@ class Agents:
 
     def NewsAgent(self, state: State):
         '''
-            Get the recent news based on the query or company name and provide a summarization of it.
+            Get the recent news based on the query or company name.
         '''
         try:
             raw_news = ""
-            with DDGS() as ddgs:
-                results = ddgs.news(
-                    query=state["query"],
-                    max_results=5,
-                    region="wt-wt"
-                )
-            raw_news += "\n".join([f"{r['title']}: {r['body']} ({r['date']})" for r in results])
+            response = self.tavily.search(
+                query=state["query"],
+                topic="news",
+                search_depth="fast",
+                max_results=6,
+                time_range="month"
+            )
+            for r in response["results"]:
+                raw_news += "\n".join(f"Score:{r["score"]} /t{r["title"]}: {r["content"]}/t Published on:{r["published_date"]}")
             return { 
                 "completedSections": [{
                     "agent": "NewsAgent",
@@ -141,6 +146,15 @@ class Agents:
         '''
             Pulls cash flow, earnings, income statements, ratios from yfinance API.
         '''
+        # exiting early if company name is not provided
+        if state["tickerName"] == "":
+            return {
+                "completedSections": [{
+                    "agent": "OutlookAgent",
+                    "probability": state["agentsProb"]["need_outlook"],
+                    "raw": "No outlook around this company found",
+                }]
+            }
         resp = self.supervisor.invoke({
                 "state": f"""Ticker: {state['tickerName']}
                     User query: {state['query']}
@@ -206,6 +220,14 @@ class Agents:
         '''
             Retrieves price targets, revenue estimates, analyst recommendations from yfinance and generates insights.
         '''
+        if state["tickerName"] == "":
+            return {
+                "completedSections": [{
+                    "agent": "OutlookAgent",
+                    "probability": state["agentsProb"]["need_outlook"],
+                    "raw": "No outlook around this company found",
+                }]
+            }
         try:
             ticker = yf.Ticker(state["tickerName"])
             outlook_data = {}
@@ -273,13 +295,15 @@ class Agents:
         '''
         try: 
             raw_news = ""
-            with DDGS() as ddgs:
-                results = ddgs.news(
-                    query=state["query"],
-                    max_results=5,
-                    region="wt-wt"
-                )
-            raw_news += "\n".join([f"{r['title']}: {r['body']} ({r['date']})" for r in results])
+            response = self.tavily.search(
+                            query=state["query"],
+                            topic="news",
+                            search_depth="fast",
+                            max_results=6,
+                            time_range="month"
+                        )
+            for r in response["results"]:
+                raw_news += "\n".join(f"Score:{r["score"]} /t{r["title"]}: {r["content"]}/t Published on: {r["published_date"]}")
             return { 
                 "completedSections": [{
                     "agent": "SectorAgent",
@@ -324,7 +348,6 @@ class Agents:
                 Produce the final research report.
             """)
         ])
-
         return {"finalReport": report.content}
     
     def buildGraph(self):
@@ -358,8 +381,8 @@ if __name__ == "__main__":
     agents = Agents()
     graph = agents.buildGraph()
     initialState: State = {
-        "tickerName": "NVDA",
-        "query": "Outlook around Semiconductor space also how is Nvidia doing?",
+        "tickerName": "",
+        "query": "Outlook around Semiconductor space",
         "agentsProb": DefaultDict(),
         "agentsNeeded": [],
         "completedSections": [],
