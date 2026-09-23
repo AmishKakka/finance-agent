@@ -14,7 +14,7 @@ Only the relevant agents are used, keeping it fast and cheap.
 
 | Agent | What it does |
 |-------|--------------|
-| **NewsAgent** | Recent news & events (DuckDuckGo) |
+| **NewsAgent** | Recent news & events (Tavily) |
 | **FinancialStmtAgent** | Income statement, balance sheet, cash flow, earnings (yfinance) |
 | **OutlookAgent** | Analyst recommendations, price targets, revenue & growth estimates (yfinance) |
 | **SectorAgent** | Sector / industry level news & outlook |
@@ -42,7 +42,7 @@ Only the two high-probability agents run → final report.
 
 **LLM (final report only)**: Gemini 2.5 Flash
 
-**Data**: yfinance + DuckDuckGo Search
+**Data**: yfinance + Tavily Search
 
 ## Installation
 
@@ -56,4 +56,17 @@ pip install -r requirements.txt
 # Add your keys to .env
 GEMINI-API-KEY=...
 JEV-API-KEY=...
+TAVILY-API-KEY=...
+
+# Running the application
+uvicorn main:app --reload
+# Then visit http://127.0.0.1:8000/
 ```
+
+## Pointers
+
+1. Need to add a fallback function if the query is not around stocks or financial topics.
+
+2. Be able to download the financial data from the website.
+
+3. Every API key used is free.

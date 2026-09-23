@@ -4,5 +4,4 @@ __pycache__
 .DS_Store
 
 # Store all your api-keys and secrets in this file
-secrets.txt
 .env

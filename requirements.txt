@@ -4,6 +4,7 @@ langgraph
 langchain-google-genai
 langchain-typesafe
 yfinance
+uvicorn
 tavily-python
 python-dotenv
 fastapi
