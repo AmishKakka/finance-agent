@@ -10,4 +10,5 @@ python-dotenv
 fastapi
 polars
 numpy
+IPython
 rich
