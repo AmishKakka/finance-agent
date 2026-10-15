@@ -19,7 +19,6 @@ async def lifespan(app: FastAPI):
     app.state.request_counter = 0
     
     yield  # The app runs while paused here
-    
     print("Application shutting down...")
 
 app = FastAPI(title="Warren Financial Agent", lifespan=lifespan)

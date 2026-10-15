@@ -41,9 +41,9 @@ class State(TypedDict):
 
 class Agents:
     def __init__(self):
-        gemini_key = os.getenv("GEMINI-API-KEY") or ""
-        jev_key = os.getenv("JEV-API-KEY") or ""
-        tavily_key = os.getenv("TAVILY-API-KEY") or ""
+        gemini_key = os.getenv("GEMINI_API_KEY") or ""
+        jev_key = os.getenv("JEV_API_KEY") or ""
+        tavily_key = os.getenv("TAVILY_API_KEY") or ""
         self.llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", api_key=gemini_key)
         self.tavily = TavilyClient(tavily_key)
         self.supervisor = TypeSafeClassifier(api_key=jev_key)
