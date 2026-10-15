@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-    <title>Warren Financial Agent</title>
+    <title>Agent Warren</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -67,7 +67,7 @@
                         "body": ["Inter"],
                         "label": ["Inter"]
                     },
-                    borderRadius: { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" },
+                    borderRadius: { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "9999px" },
                 },
             },
         }
@@ -103,7 +103,7 @@
 </head>
 
 <body class="text-on-surface overflow-hidden bg-background">
-    <header class="bg-white/80 backdrop-blur-md dark:bg-primary/90 docked full-width top-0 z-50 flex justify-between items-center w-full px-8 py-3.5 border-b border-outline-variant/30 fixed">
+    <header class="bg-white/80 backdrop-blur-md dark:bg-primary/90 docked full-width top-0 z-50 flex justify-between items-center w-full px-8 py-3.5 border-b border-outline-variant/30 fixed rounded-b-2xl">
         <div class="flex items-center gap-12">
             <div class="flex items-center gap-2">
                 <span class="text-lg font-black text-primary dark:text-white uppercase tracking-tighter">Financial Agentic AI</span>
@@ -112,19 +112,19 @@
     </header>
 
     <div class="flex h-screen pt-[61px]">
-        <main class="flex-1 flex flex-col relative bg-surface-container-lowest overflow-hidden">
+        <main class="flex-1 flex flex-col relative bg-surface-container-lowest overflow-hidden rounded-2xl">
             <!-- Chat area -->
             <div id="chat-scroll-container" class="flex-1 overflow-y-auto scrollbar-hide px-6 py-10">
-                <div id="chat-history" class="max-w-3xl mx-auto space-y-16">
+                <div id="chat-history" class="max-w-[57.6rem] mx-auto space-y-16">
                     <div class="flex gap-6 items-start">
-                        <div class="w-10 h-10 flex-shrink-0 bg-secondary text-white flex items-center justify-center shadow-lg shadow-secondary/20">
-                            <span class="material-symbols-outlined text-[20px]">auto_awesome</span>
+                        <div class="w-10 h-10 flex-shrink-0 bg-secondary text-white flex items-center justify-center shadow-lg shadow-secondary/20 rounded-full">
+                            <span class="material-symbols-outlined text-[20px]">smart_toy</span>
                         </div>
                         <div class="flex-1 space-y-4">
                             <div class="flex items-baseline gap-3 mb-3">
-                                <h4 class="text-xs font-black uppercase tracking-widest text-secondary">System Ready</h4>
+                                <h4 class="text-xs font-black uppercase tracking-widest text-secondary">Warren</h4>
                             </div>
-                            <p class="text-on-surface-variant leading-relaxed text-base">
+                            <p class="text-on-surface-variant leading-relaxed text-base bg-surface-container-low rounded-xl px-5 py-4">
                                 Enter a ticker symbol and your query below to generate a comprehensive research report.
                             </p>
                         </div>
@@ -133,9 +133,9 @@
             </div>
 
             <!-- Input area -->
-            <div class="p-8 border-t border-outline-variant/20 bg-white">
-                <div class="max-w-3xl mx-auto">
-                    <div class="relative border border-outline-variant/40 shadow-sm focus-within:border-primary transition-all bg-surface-container-low flex flex-col">
+            <div class="p-8 border-t border-outline-variant/20 bg-white rounded-t-2xl">
+                <div class="max-w-[57.6rem] mx-auto">
+                    <div class="relative border border-outline-variant/40 shadow-sm focus-within:border-primary transition-all bg-surface-container-low flex flex-col rounded-2xl">
                         
                         <!-- Ticker input + suggestions -->
                         <div class="relative">
@@ -147,7 +147,7 @@
                                 placeholder="Ticker Symbol (e.g. NVDA, AAPL)" 
                             />
                             <ul id="search-suggestions" 
-                                class="absolute z-50 left-0 right-0 mt-1 bg-white border border-outline-variant/30 shadow-lg hidden max-h-48 overflow-y-auto scrollbar-hide">
+                                class="absolute z-50 left-0 right-0 bottom-full mb-1 bg-white border border-outline-variant/30 shadow-lg hidden max-h-60 overflow-y-auto overscroll-contain rounded-xl">
                             </ul>
                         </div>
                         
@@ -159,7 +159,7 @@
                         ></textarea>
                         
                         <div class="absolute right-4 bottom-4 flex items-center gap-3">
-                            <button id="send-button" class="bg-primary hover:bg-[#002366] text-white px-6 py-2.5 flex items-center gap-2.5 text-xs font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-primary/20">
+                            <button id="send-button" class="bg-primary hover:bg-[#002366] text-white px-6 py-2.5 flex items-center gap-2.5 text-xs font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-primary/20 rounded-xl">
                                 <span>Execute</span>
                                 <span class="material-symbols-outlined text-sm">send</span>
                             </button>
@@ -167,7 +167,7 @@
                     </div>
                     <div class="mt-4 flex justify-between items-center px-1">
                         <div class="flex gap-6">
-                            <div class="flex items-center gap-2 text-[10px] font-black text-outline uppercase tracking-wider">
+                            <div class="flex items-center gap-2 text-[10px] font-black text-outline uppercase tracking-wider bg-surface-container-low rounded-full px-3 py-2">
                                 <span class="w-1.5 h-1.5 rounded-full bg-secondary"></span> API Status: Connected
                             </div>
                         </div>
@@ -215,7 +215,7 @@
 
                         result.data.slice(0, 15).forEach(item => {
                             const li = document.createElement('li');
-                            li.className = 'px-4 py-3 text-xs font-bold text-primary hover:bg-surface-container-low cursor-pointer border-b border-outline-variant/10 last:border-0 transition-colors flex justify-between items-center gap-3';
+                            li.className = 'px-4 py-3 text-xs font-bold text-primary hover:bg-surface-container-low cursor-pointer border-b border-outline-variant/10 last:border-0 transition-colors flex justify-between items-center gap-3 rounded-lg';
 
                             li.innerHTML = `
                                 <span class="font-black tracking-widest">${item.symbol}</span>
@@ -261,7 +261,7 @@
             
             const userHtml = `
                 <div class="flex gap-6 items-start group">
-                    <div class="w-10 h-10 flex-shrink-0 bg-primary-container text-primary-fixed flex items-center justify-center font-black text-xs shadow-sm">
+                    <div class="w-10 h-10 flex-shrink-0 bg-primary-container text-primary-fixed flex items-center justify-center font-black text-xs shadow-sm rounded-full">
                         You
                     </div>
                     <div class="flex-1 pt-1.5">
@@ -269,7 +269,7 @@
                             <h4 class="text-xs font-black uppercase tracking-widest text-primary">Inquiry: ${ticker}</h4>
                             <span class="text-[10px] text-outline font-medium uppercase tracking-tighter">${timeString}</span>
                         </div>
-                        <p class="text-primary font-medium leading-relaxed text-lg whitespace-pre-wrap">${query}</p>
+                        <p class="text-primary font-medium leading-relaxed text-lg whitespace-pre-wrap bg-surface-container-low rounded-xl px-5 py-4">${query}</p>
                     </div>
                 </div>
             `;
@@ -285,8 +285,8 @@
 
             const aiHtml = `
                 <div class="flex gap-6 items-start" id="${messageId}">
-                    <div class="w-10 h-10 flex-shrink-0 bg-secondary text-white flex items-center justify-center shadow-lg shadow-secondary/20">
-                        <span class="material-symbols-outlined text-[20px]">auto_awesome</span>
+                    <div class="w-10 h-10 flex-shrink-0 bg-secondary text-white flex items-center justify-center shadow-lg shadow-secondary/20 rounded-full">
+                        <span class="material-symbols-outlined text-[20px]">smart_toy</span>
                     </div>
                     <div class="flex-1 space-y-4">
                         <div class="flex items-baseline gap-3 mb-3">
@@ -295,15 +295,31 @@
                                 ${timeString} • Processing...
                             </span>
                         </div>
-                        <div class="text-on-surface-variant leading-relaxed text-base markdown-container" id="${contentId}">
+                        <div class="text-on-surface-variant leading-relaxed text-base markdown-container bg-surface-container-low rounded-xl px-5 py-4" id="${contentId}">
                             <p class="animate-pulse text-secondary font-bold">Gathering data from specialized agents...</p>
+                        </div>
+                        <div id="agents-${messageId}" class="text-xs text-outline" aria-live="polite">
+                            Selecting research agents...
+                        </div>
+                        <div class="hidden items-center gap-3 text-xs font-bold text-secondary" id="phase-${messageId}" aria-live="polite">
+                            <span id="phase-label-${messageId}"></span>
+                            <button id="download-${messageId}" type="button" class="hidden rounded-lg bg-primary px-3 py-2 text-[10px] font-black uppercase tracking-wider text-white transition-colors hover:bg-[#002366]">
+                                Download report
+                            </button>
                         </div>
                     </div>
                 </div>
             `;
             chatHistory.insertAdjacentHTML('beforeend', aiHtml);
             scrollToBottom();
-            return { contentId, timeId };
+            return {
+                contentId,
+                timeId,
+                agentsId: `agents-${messageId}`,
+                phaseId: `phase-${messageId}`,
+                phaseLabelId: `phase-label-${messageId}`,
+                downloadId: `download-${messageId}`
+            };
         }
 
         function getTickerSymbol() {
@@ -329,9 +345,19 @@
             appendUserMessage(ticker, query);
 
             const startTime = performance.now();
-            const { contentId, timeId } = appendLoadingMessage();
+            const { contentId, timeId, agentsId, phaseId, phaseLabelId, downloadId } = appendLoadingMessage();
             const contentContainer = document.getElementById(contentId);
             const timeContainer = document.getElementById(timeId);
+            const agentsContainer = document.getElementById(agentsId);
+            const phaseContainer = document.getElementById(phaseId);
+            const phaseLabel = document.getElementById(phaseLabelId);
+            const downloadButton = document.getElementById(downloadId);
+            const agentLabels = {
+                NewsAgent: 'News & Events',
+                FinancialStmtAgent: 'Financial Statements',
+                OutlookAgent: 'Analyst Outlook',
+                SectorAgent: 'Sector Outlook'
+            };
 
             try {
                 const res = await fetch("/research", {
@@ -343,19 +369,81 @@
                     })
                 });
 
-                const response = await res.json();
+                if (!res.ok) {
+                    const response = await res.json();
+                    const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
+                    timeContainer.textContent = `${elapsed}s • Failed`;
+                    contentContainer.textContent = `Error: ${response.detail || 'The request failed.'}`;
+                    contentContainer.classList.add('text-error', 'font-bold');
+                    return;
+                }
+
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let pending = '';
+                let reportText = '';
+                let streamError = null;
+                const agentStatuses = new Map();
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    pending += decoder.decode(value, { stream: !done });
+                    const lines = pending.split('\n');
+                    pending = lines.pop() || '';
+
+                    for (const line of lines) {
+                        if (!line) continue;
+                        const message = JSON.parse(line);
+                        if (message.type === 'token') {
+                            reportText += message.content;
+                            contentContainer.innerHTML = marked.parse(reportText);
+                            scrollToBottom();
+                        } else if (message.type === 'error') {
+                            streamError = message.detail;
+                        } else if (message.type === 'agent') {
+                            agentStatuses.set(message.name, message.status);
+                            agentsContainer.textContent = [...agentStatuses]
+                                .map(([name, status]) => `${agentLabels[name] || name}: ${status}`)
+                                .join(' · ');
+                        } else if (message.type === 'done') {
+                            const names = message.agents.map(name => agentLabels[name] || name);
+                            agentsContainer.textContent = names.length
+                                ? `Agents used: ${names.join(', ')}`
+                                : 'No specialist agents were selected.';
+                            phaseLabel.textContent = 'Report generated.';
+                            phaseContainer.classList.remove('hidden');
+                            phaseContainer.classList.add('flex');
+                            if (reportText.trim()) {
+                                downloadButton.classList.remove('hidden');
+                                downloadButton.addEventListener('click', () => {
+                                    const blob = new Blob([reportText], { type: 'text/markdown;charset=utf-8' });
+                                    const url = URL.createObjectURL(blob);
+                                    const link = document.createElement('a');
+                                    const safeTicker = ticker.toLowerCase().replace(/[^a-z0-9_-]/g, '') || 'research';
+                                    link.href = url;
+                                    link.download = `${safeTicker}-research-report.md`;
+                                    link.click();
+                                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                                }, { once: true });
+                            }
+                        } else if (message.type === 'phase' && message.status === 'generating') {
+                            phaseLabel.textContent = 'Generating report...';
+                            phaseContainer.classList.remove('hidden');
+                            phaseContainer.classList.add('flex');
+                        }
+                    }
+
+                    if (done) break;
+                }
+
                 const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
-
-                // Update the time taken for query
                 timeContainer.textContent = `${new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })} • ${elapsed} seconds`;
-
-                if (response.status === "success") {
-                    const reportText = typeof response.report === 'string'
-                        ? response.report
-                        : (response.report?.data || response.report);
-                    contentContainer.innerHTML = marked.parse(reportText);
-                } else {
-                    contentContainer.innerHTML = `<p class="text-error font-bold">Error: ${response.message || 'Unknown error'}</p>`;
+                if (streamError) {
+                    contentContainer.textContent = `Error: ${streamError}`;
+                    contentContainer.classList.add('text-error', 'font-bold');
+                    phaseLabel.textContent = 'Report generation failed.';
+                    phaseContainer.classList.remove('hidden');
+                    phaseContainer.classList.add('flex');
                 }
             } catch (err) {
                 const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);

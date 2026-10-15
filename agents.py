@@ -202,7 +202,7 @@ class Agents:
                         finStmt_data[function_name] = str(method_to_call(as_dict=True))
                     else:
                         finStmt_data[function_name] = f"Method {function_name} not found for {state['tickerName']}"
-            print(finStmt_data)
+            # print(finStmt_data)
             return { 
                 "completedSections": [{
                     "agent": "FinancialStmtAgent",
@@ -337,7 +337,8 @@ class Agents:
             f"### {s['agent']} (relevance: {s['probability']:.2f})\n{s['raw']}" for s in sections
         )
 
-        report = self.llm.invoke([
+        report_chunks = []
+        for chunk in self.llm.stream([
             SystemMessage(content=f"""You are a senior equity research analyst.
                 Write a clear, professional investment research note.
                 Use the evidence below. Give more weight to higher-relevance sections.
@@ -347,7 +348,7 @@ class Agents:
                 If the data you receive whether news or financial data and 
                 the date or year on them appears to be far-behind today's date, then acknowledge the fact gracefully.
                 Work on the evidence to provide insights but also with that acknowledge the date difference."""),
-                        HumanMessage(content=f"""Ticker: {state['tickerName']}
+            HumanMessage(content=f"""Ticker: {state['tickerName']}
                 User question: {state['query']}
 
                 Evidence from specialized agents:
@@ -355,8 +356,10 @@ class Agents:
 
                 Produce the final research report.
             """)
-        ])
-        return {"finalReport": report.content}
+        ]):
+            if isinstance(chunk.content, str):
+                report_chunks.append(chunk.content)
+        return {"finalReport": "".join(report_chunks)}
     
     def buildGraph(self):
         '''
@@ -383,19 +386,4 @@ class Agents:
         orchestrator.add_edge("SectorAgent", "controller")
         orchestrator.add_edge("controller", END)
         return orchestrator.compile()
-
-
-# if __name__ == "__main__":
-#     agents = Agents()
-#     graph = agents.buildGraph()
-#     initialState: State = {
-#         "tickerName": "",
-#         "query": "Outlook around Semiconductor space",
-#         "agentsProb": DefaultDict(),
-#         "agentsNeeded": [],
-#         "completedSections": [],
-#         "finalReport": "",
-#     }
-#     queryResponse = graph.invoke(initialState)
-#     console = Console()
-#     console.print(Markdown(queryResponse["finalReport"])) 
+ 
