@@ -73,12 +73,9 @@ def download_data(stocks):
     stocksData = [i for i in data if i!=None]
     formatDatatoFile(stocksData)
 
-
-def fetchTickers():
+def saveTickers():
     '''
-    Fetches the list of NASDAQ-listed companies with the ticker symbol, company name, and more information.
-        
-    **Returns**: List of NASDAQ-listed companies with the ticker symbol and company name.
+        Fetches the list of NASDAQ-listed companies with the ticker symbol, company name and saves to csv.
     '''
     # URLs for the NASDAQ Trader Symbol Directory files
     # List is updated everyday.
@@ -91,15 +88,13 @@ def fetchTickers():
 
     #  Filter for companies that are not bankrupt, delisted, etc.
     normal = nasdaq_data.filter(pl.col("Financial Status") == "N")
-    return normal.select(["Symbol", "Security Name"])
+    normal.select(["Symbol", "Security Name"]).write_csv("ticker.csv")
+    return True
+
+def fetchTickers() -> pl.DataFrame:
+    return pl.read_csv("ticker.csv")
 
 
 # ----------------------------------------------------------------------- #
 if __name__ == "__main__":
-    batch_size = 25
-    nasdaq_tickers = fetchTickers()
-    m = len(list(nasdaq_tickers["Symbol"]))
-
-    for idx in range(0, m, batch_size):
-        download_data(list(nasdaq_tickers["Symbol"][idx:idx+batch_size]))
-        time.sleep(4) 
+    print(saveTickers())
