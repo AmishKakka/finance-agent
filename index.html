@@ -204,7 +204,7 @@
 
             debounceTimer = setTimeout(async () => {
                 try {
-                    const response = await fetch(`http://127.0.0.1:8000/suggestions?q=${encodeURIComponent(query)}`);
+                    const response = await fetch(`/suggestions?q=${encodeURIComponent(query)}`);
                     if (!response.ok) throw new Error('API Error');
 
                     const result = await response.json();
@@ -334,7 +334,7 @@
             const timeContainer = document.getElementById(timeId);
 
             try {
-                const res = await fetch("http://127.0.0.1:8000/research", {
+                const res = await fetch("/research", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
