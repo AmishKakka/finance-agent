@@ -40,7 +40,7 @@ Only the two high-probability agents run → final report.
 
 **Orchestration**: LangGraph
 
-**LLM (final report only)**: Gemini 2.5 Flash
+**LLM (final report only)**: Gemini 3.8 Flash
 
 **Data**: yfinance + Tavily Search
 
