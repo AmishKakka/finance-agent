@@ -13,8 +13,20 @@ from rich.console import Console
 from rich.markdown import Markdown
 from dotenv import load_dotenv
 from pydantic import BaseModel
+import logging
 load_dotenv()
 print("Import successfull!!!")
+
+
+def extract_text_content(content: Any) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "".join(extract_text_content(block) for block in content)
+    if isinstance(content, dict):
+        text = content.get("text")
+        return text if isinstance(text, str) else ""
+    return ""
 
 
 # Declaring schema for sections of the report 
@@ -93,7 +105,7 @@ class Agents:
                 }
             }
         )
-        print("Supervisor Node: ", response)
+        logging.info("Supervisor Node results: ", response)
         agent_map = { "need_news": "NewsAgent", "need_fin_stmt": "FinancialStmtAgent",
                       "need_outlook": "OutlookAgent", "need_sector": "SectorAgent"}
         agents_prob = {
@@ -336,6 +348,7 @@ class Agents:
         evidence = "\n\n".join(
             f"### {s['agent']} (relevance: {s['probability']:.2f})\n{s['raw']}" for s in sections
         )
+        logging.info("Evidence found: %s", evidence)
 
         report_chunks = []
         for chunk in self.llm.stream([
@@ -357,9 +370,14 @@ class Agents:
                 Produce the final research report.
             """)
         ]):
-            if isinstance(chunk.content, str):
-                report_chunks.append(chunk.content)
-        return {"finalReport": "".join(report_chunks)}
+            text = extract_text_content(chunk.content)
+            if text:
+                report_chunks.append(text)
+        logging.info("chunks: %s", report_chunks)
+        final_report = "".join(report_chunks)
+        if not final_report.strip():
+            raise RuntimeError("The report model returned no text.")
+        return {"finalReport": final_report}
     
     def buildGraph(self):
         '''

@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from yfinance import ticker
-from agents import Agents
+from agents import Agents, extract_text_content
 from fastapi.responses import StreamingResponse
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
@@ -69,12 +69,16 @@ async def analyze(request: AnalysisRequest):
     async def stream_report():
         specialist_agents = {"NewsAgent", "FinancialStmtAgent", "OutlookAgent", "SectorAgent"}
         agents_used = []
+        report_text = ""
         try:
             async for event in app.state.AgentGraph.astream_events({
                 "tickerName": ticker_name,
                 "query": query
             }, version="v2"):
-                event_name = event.get("metadata", {}).get("langgraph_node")
+                event_name = (
+                    event.get("metadata", {}).get("langgraph_node")
+                    or event.get("name")
+                )
                 if event_name in specialist_agents and event["event"] == "on_chain_start":
                     if event_name not in agents_used:
                         agents_used.append(event_name)
@@ -97,11 +101,30 @@ async def analyze(request: AnalysisRequest):
 
                 if (
                     event["event"] == "on_chat_model_stream"
-                    and event.get("metadata", {}).get("langgraph_node") == "controller"
+                    and event_name == "controller"
                 ):
-                    content = event["data"]["chunk"].content
-                    if isinstance(content, str) and content:
+                    content = extract_text_content(event["data"]["chunk"].content)
+                    if content:
+                        report_text += content
                         yield json.dumps({"type": "token", "content": content}) + "\n"
+
+                if event["event"] == "on_chain_end" and event_name == "controller":
+                    output = event["data"].get("output", {})
+                    final_report = (
+                        extract_text_content(output.get("finalReport", ""))
+                        if isinstance(output, dict)
+                        else ""
+                    )
+                    if final_report and not report_text:
+                        report_text = final_report
+                        yield json.dumps({"type": "token", "content": final_report}) + "\n"
+
+            if not report_text.strip():
+                yield json.dumps({
+                    "type": "error",
+                    "detail": "Report generation finished without returning any text. Please try again.",
+                }) + "\n"
+                return
             yield json.dumps({"type": "done", "agents": agents_used}) + "\n"
         except Exception:
             logger.exception("Research request failed for ticker %s", ticker_name)

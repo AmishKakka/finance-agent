@@ -124,7 +124,7 @@
                             <div class="flex items-baseline gap-3 mb-3">
                                 <h4 class="text-xs font-black uppercase tracking-widest text-secondary">Warren</h4>
                             </div>
-                            <p class="text-on-surface-variant leading-relaxed text-base bg-surface-container-low rounded-xl px-5 py-4">
+                            <p class="w-fit max-w-full break-words text-on-surface-variant leading-relaxed text-base bg-surface-container-low rounded-xl px-5 py-4">
                                 Enter a ticker symbol and your query below to generate a comprehensive research report.
                             </p>
                         </div>
@@ -269,7 +269,7 @@
                             <h4 class="text-xs font-black uppercase tracking-widest text-primary">Inquiry: ${ticker}</h4>
                             <span class="text-[10px] text-outline font-medium uppercase tracking-tighter">${timeString}</span>
                         </div>
-                        <p class="text-primary font-medium leading-relaxed text-lg whitespace-pre-wrap bg-surface-container-low rounded-xl px-5 py-4">${query}</p>
+                        <p class="w-fit max-w-full break-words text-primary font-medium leading-relaxed text-lg whitespace-pre-wrap bg-surface-container-low rounded-xl px-5 py-4">${query}</p>
                     </div>
                 </div>
             `;
@@ -295,7 +295,7 @@
                                 ${timeString} • Processing...
                             </span>
                         </div>
-                        <div class="text-on-surface-variant leading-relaxed text-base markdown-container bg-surface-container-low rounded-xl px-5 py-4" id="${contentId}">
+                        <div class="w-fit max-w-full break-words text-on-surface-variant leading-relaxed text-base markdown-container bg-surface-container-low rounded-xl px-5 py-4" id="${contentId}">
                             <p class="animate-pulse text-secondary font-bold">Gathering data from specialized agents...</p>
                         </div>
                         <div id="agents-${messageId}" class="text-xs text-outline" aria-live="polite">
