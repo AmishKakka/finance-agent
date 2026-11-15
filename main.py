@@ -8,6 +8,7 @@ from agents import Agents, extract_text_content
 from fastapi.responses import StreamingResponse
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
+from langchain_core.messages import AIMessageChunk
 import polars as pl
 from setup_data import fetchTickers
 
@@ -67,71 +68,80 @@ async def analyze(request: AnalysisRequest):
         )
 
     async def stream_report():
-        specialist_agents = {"NewsAgent", "FinancialStmtAgent", "OutlookAgent", "SectorAgent"}
-        agents_used = []
+        selected_agents = []
         report_text = ""
+
+        def line(payload: dict) -> str:
+            return json.dumps(payload, ensure_ascii=False, allow_nan=False) + "\n"
+
         try:
-            async for event in app.state.AgentGraph.astream_events({
-                "tickerName": ticker_name,
-                "query": query
-            }, version="v2"):
-                event_name = (
-                    event.get("metadata", {}).get("langgraph_node")
-                    or event.get("name")
-                )
-                if event_name in specialist_agents and event["event"] == "on_chain_start":
-                    if event_name not in agents_used:
-                        agents_used.append(event_name)
-                        yield json.dumps({
-                            "type": "agent",
-                            "name": event_name,
-                            "status": "started",
-                        }) + "\n"
-                elif event_name in specialist_agents and event["event"] == "on_chain_end":
-                    yield json.dumps({
-                        "type": "agent",
-                        "name": event_name,
-                        "status": "completed",
-                    }) + "\n"
-                elif event_name == "controller" and event["event"] == "on_chain_start":
-                    yield json.dumps({
-                        "type": "phase",
-                        "status": "generating",
-                    }) + "\n"
-
-                if (
-                    event["event"] == "on_chat_model_stream"
-                    and event_name == "controller"
-                ):
-                    content = extract_text_content(event["data"]["chunk"].content)
-                    if content:
-                        report_text += content
-                        yield json.dumps({"type": "token", "content": content}) + "\n"
-
-                if event["event"] == "on_chain_end" and event_name == "controller":
-                    output = event["data"].get("output", {})
-                    final_report = (
-                        extract_text_content(output.get("finalReport", ""))
-                        if isinstance(output, dict)
-                        else ""
-                    )
-                    if final_report and not report_text:
-                        report_text = final_report
-                        yield json.dumps({"type": "token", "content": final_report}) + "\n"
+            async for item in app.state.AgentGraph.astream(
+                {"tickerName": ticker_name, "query": query},
+                stream_mode=["custom", "messages", "updates"],
+            ):
+                if not (isinstance(item, tuple) and len(item) == 2):
+                    continue
+                mode, payload = item
+                if mode == "custom" and isinstance(payload, dict):
+                    if payload.get("agent") == "supervisor" and payload.get("status") == "decision":
+                        selected_agents = [
+                            name for name in payload.get("selected", [])
+                            if isinstance(name, str)
+                        ]
+                    try:
+                        yield line(payload)
+                    except (TypeError, ValueError):
+                        logger.exception("Could not serialize a progress event")
+                        yield line({
+                            "type": "trace",
+                            "agent": payload.get("agent") or "supervisor",
+                            "status": "error",
+                            "message": "A progress update could not be displayed.",
+                        })
+                elif mode == "messages" and isinstance(payload, tuple) and len(payload) == 2:
+                    message, metadata = payload
+                    node = metadata.get("langgraph_node") if isinstance(metadata, dict) else None
+                    if node != "controller":
+                        continue
+                    content = extract_text_content(getattr(message, "content", ""))
+                    if not content:
+                        continue
+                    # The messages stream can repeat the finished note after the chunks.
+                    if not isinstance(message, AIMessageChunk):
+                        if report_text:
+                            continue
+                        report_text = content
+                        yield line({"type": "token", "content": content})
+                        continue
+                    report_text += content
+                    yield line({"type": "token", "content": content})
+                elif mode == "updates" and isinstance(payload, dict) and not report_text:
+                    output = payload.get("controller")
+                    if isinstance(output, dict):
+                        final_report = extract_text_content(output.get("finalReport", ""))
+                        if final_report:
+                            report_text = final_report
+                            yield line({"type": "token", "content": final_report})
 
             if not report_text.strip():
-                yield json.dumps({
+                yield line({
                     "type": "error",
                     "detail": "Report generation finished without returning any text. Please try again.",
-                }) + "\n"
+                })
                 return
-            yield json.dumps({"type": "done", "agents": agents_used}) + "\n"
+            yield line({"type": "done", "agents": selected_agents})
         except Exception:
             logger.exception("Research request failed for ticker %s", ticker_name)
-            yield json.dumps({
+            yield line({
+                "type": "trace",
+                "agent": "controller",
+                "status": "error",
+                "message": "The research run failed before the report was finished.",
+            })
+            yield line({
                 "type": "error",
                 "detail": "The research service failed to complete the request. Please try again later.",
-            }) + "\n"
+            })
 
     return StreamingResponse(stream_report(), media_type="application/x-ndjson")
 

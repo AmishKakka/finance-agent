@@ -84,7 +84,7 @@
         .scrollbar-hide { -ms-overflow-style: none; }
         
         .markdown-container h1, .markdown-container h2, .markdown-container h3 {
-            color: #00113a; /* text-primary */
+            color: inherit;
             font-weight: 900;
             letter-spacing: -0.025em;
             margin-top: 1.5em;
@@ -97,8 +97,24 @@
         .markdown-container ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 1rem; }
         .markdown-container ol { list-style-type: decimal; margin-left: 1.5rem; margin-bottom: 1rem; }
         .markdown-container li { margin-bottom: 0.5rem; }
-        .markdown-container strong { color: #00113a; font-weight: 700; }
-        .markdown-container a { color: #006c4b; text-decoration: underline; }
+        .markdown-container strong { color: inherit; font-weight: 700; }
+        .markdown-container a { color: #00113a; text-decoration: underline; }
+
+        .chat-box-user,
+        .chat-box-report {
+            background-color: #ffffff;
+            color: #00113a;
+        }
+        .chat-box-report.is-error,
+        .chat-box-report.is-error p { color: #ba1a1a; }
+
+        .process-scroll::-webkit-scrollbar,
+        .process-log::-webkit-scrollbar { width: 8px; }
+        .process-scroll::-webkit-scrollbar-thumb,
+        .process-log::-webkit-scrollbar-thumb {
+            background: #c5c6d2;
+            border-radius: 999px;
+        }
     </style>
 </head>
 
@@ -111,8 +127,8 @@
         </div>
     </header>
 
-    <div class="flex h-screen pt-[61px]">
-        <main class="flex-1 flex flex-col relative bg-surface-container-lowest overflow-hidden rounded-2xl">
+    <div class="grid h-screen grid-cols-[65fr_35fr] overflow-hidden pt-[61px]">
+        <main class="flex min-h-0 min-w-0 flex-col relative bg-background overflow-hidden">
             <!-- Chat area -->
             <div id="chat-scroll-container" class="flex-1 overflow-y-auto scrollbar-hide px-6 py-10">
                 <div id="chat-history" class="max-w-[57.6rem] mx-auto space-y-16">
@@ -124,7 +140,7 @@
                             <div class="flex items-baseline gap-3 mb-3">
                                 <h4 class="text-xs font-black uppercase tracking-widest text-secondary">Warren</h4>
                             </div>
-                            <p class="w-fit max-w-full break-words text-on-surface-variant leading-relaxed text-base bg-surface-container-low rounded-xl px-5 py-4">
+                            <p class="chat-box-report w-fit max-w-full break-words leading-relaxed text-base rounded-xl px-5 py-4">
                                 Enter a ticker symbol and your query below to generate a comprehensive research report.
                             </p>
                         </div>
@@ -133,7 +149,7 @@
             </div>
 
             <!-- Input area -->
-            <div class="p-8 border-t border-outline-variant/20 bg-white rounded-t-2xl">
+            <div class="p-8 border-t border-outline-variant/20 bg-background rounded-t-2xl">
                 <div class="max-w-[57.6rem] mx-auto">
                     <div class="relative border border-outline-variant/40 shadow-sm focus-within:border-primary transition-all bg-surface-container-low flex flex-col rounded-2xl">
                         
@@ -175,6 +191,21 @@
                 </div>
             </div>
         </main>
+
+        <aside class="flex min-h-0 min-w-0 flex-col border-l border-outline-variant/30 bg-background" contenteditable="false" aria-readonly="true" aria-label="Agent process">
+            <div class="shrink-0 border-b border-outline-variant/30 bg-background px-4 py-3">
+                <div class="flex items-center justify-between gap-3">
+                    <h2 class="text-[13px] font-black uppercase tracking-widest text-primary">Process</h2>
+                    <span class="text-xs font-bold uppercase tracking-wider text-outline">Read only</span>
+                </div>
+                <p id="process-subtitle" class="mt-1 text-[13px] font-medium text-on-surface-variant">Run a query to watch each agent work.</p>
+            </div>
+            <div id="process-feed" class="process-scroll min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3">
+                <p id="process-empty" class="rounded-xl border border-dashed border-outline-variant/50 bg-white px-4 py-6 text-sm leading-relaxed text-outline">
+                    This panel shows the supervisor decision, then a live log for every agent on the query. Each box is the raw tool output. It clears when you send a new query.
+                </p>
+            </div>
+        </aside>
     </div>
 
     <script>
@@ -247,6 +278,240 @@
             }
         });
 
+        const processFeed = document.getElementById('process-feed');
+        const processSubtitle = document.getElementById('process-subtitle');
+        const processCards = new Map();
+        const agentLabels = {
+            supervisor: 'Supervisor',
+            NewsAgent: 'NewsAgent',
+            FinancialStmtAgent: 'FinancialStmtAgent',
+            OutlookAgent: 'OutlookAgent',
+            SectorAgent: 'SectorAgent',
+            controller: 'Report'
+        };
+        const agentDetails = {
+            supervisor: 'Chooses agents',
+            NewsAgent: 'Tavily news',
+            FinancialStmtAgent: 'yfinance statements',
+            OutlookAgent: 'yfinance outlook',
+            SectorAgent: 'Tavily sector news',
+            controller: 'Summarize evidence'
+        };
+
+        function resetProcess(ticker) {
+            processCards.clear();
+            processFeed.replaceChildren();
+            processSubtitle.textContent = `${ticker} · waiting for the supervisor`;
+            const waiting = document.createElement('p');
+            waiting.id = 'process-waiting';
+            waiting.className = 'rounded-xl bg-white px-4 py-3 text-sm font-medium text-on-surface-variant';
+            waiting.textContent = 'Scoring which specialized agents this query needs.';
+            processFeed.appendChild(waiting);
+        }
+
+        function clearProcessWaiting() {
+            document.getElementById('process-waiting')?.remove();
+        }
+
+        function setCardStatus(card, status) {
+            if (!card) return;
+            const current = card.dataset.state;
+            if (current === 'running' && status === 'queued') return;
+            if ((current === 'done' || current === 'error') && status !== 'error') return;
+            card.dataset.state = status;
+            const badge = card.querySelector('[data-status]');
+            const labels = { queued: 'Queued', running: 'Running', done: 'Done', error: 'Error' };
+            badge.textContent = labels[status] || status;
+            badge.className = 'text-xs font-black uppercase tracking-wider';
+            if (status === 'running') badge.classList.add('animate-pulse', 'text-secondary');
+            else if (status === 'done') badge.classList.add('text-secondary');
+            else if (status === 'error') badge.classList.add('text-error');
+            else badge.classList.add('text-outline');
+        }
+
+        function ensureCard(agent, status) {
+            const existing = processCards.get(agent);
+            if (existing) {
+                if (status) setCardStatus(existing, status);
+                return existing;
+            }
+            clearProcessWaiting();
+            const card = document.createElement('section');
+            card.dataset.agent = agent;
+            card.className = 'flex h-64 shrink-0 flex-col overflow-hidden rounded-xl border border-outline-variant/30 bg-white';
+            const header = document.createElement('div');
+            header.className = 'flex shrink-0 items-center justify-between gap-2 border-b border-outline-variant/20 px-3 py-2';
+            const titleWrap = document.createElement('div');
+            titleWrap.className = 'min-w-0';
+            const title = document.createElement('p');
+            title.className = 'truncate text-[13px] font-black uppercase tracking-widest text-primary';
+            title.textContent = agentLabels[agent] || agent;
+            const detail = document.createElement('p');
+            detail.className = 'truncate text-xs font-medium text-outline';
+            detail.textContent = agentDetails[agent] || '';
+            titleWrap.append(title, detail);
+            const badge = document.createElement('span');
+            badge.dataset.status = 'true';
+            header.append(titleWrap, badge);
+            const log = document.createElement('div');
+            log.dataset.log = 'true';
+            log.className = 'process-log min-h-0 flex-1 overflow-y-auto px-3 py-2';
+            card.append(header, log);
+            processFeed.appendChild(card);
+            processCards.set(agent, card);
+            setCardStatus(card, status || 'running');
+            return card;
+        }
+
+        function cardLog(agent) {
+            return ensureCard(agent).querySelector('[data-log]');
+        }
+
+        function stickToBottom(log) {
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function appendNote(log, text) {
+            const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const line = document.createElement('p');
+            line.className = 'mt-2 text-[13px] leading-relaxed text-on-surface-variant first:mt-0';
+            line.textContent = `${time}  ${text}`;
+            log.appendChild(line);
+            stickToBottom(log);
+        }
+
+        function appendPre(log, title, body) {
+            const block = document.createElement('div');
+            block.className = 'mt-2';
+            const heading = document.createElement('p');
+            heading.className = 'text-xs font-black uppercase tracking-wider text-primary';
+            heading.textContent = title;
+            const pre = document.createElement('pre');
+            pre.className = 'mt-1 whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-on-surface';
+            pre.textContent = body || '';
+            block.append(heading, pre);
+            log.appendChild(block);
+            stickToBottom(log);
+        }
+
+        function appendScoreList(log, rows, threshold, noun) {
+            const list = document.createElement('ul');
+            list.className = 'mt-2 space-y-1';
+            rows.forEach((row) => {
+                const item = document.createElement('li');
+                item.className = 'flex items-center justify-between gap-2 text-[13px]';
+                const name = document.createElement('span');
+                name.className = 'min-w-0 truncate font-bold text-primary';
+                name.textContent = row.agent || row.name;
+                const score = document.createElement('span');
+                score.className = row.selected
+                    ? 'shrink-0 font-black text-secondary'
+                    : 'shrink-0 text-outline';
+                const value = Number(row.score);
+                score.textContent = `${Number.isFinite(value) ? value.toFixed(2) : '—'} · ${row.selected ? 'selected' : 'skipped'}`;
+                item.append(name, score);
+                list.appendChild(item);
+            });
+            log.appendChild(list);
+            appendNote(log, `${noun} at or above ${Number(threshold).toFixed(2)} are used.`);
+        }
+
+        function appendTavily(log, results) {
+            if (!Array.isArray(results) || results.length === 0) {
+                appendNote(log, 'Tavily returned no results.');
+                return;
+            }
+            results.forEach((item, index) => {
+                const article = document.createElement('article');
+                article.className = 'mt-2 rounded-lg border border-outline-variant/30 bg-surface-container-low px-2.5 py-2';
+                const title = document.createElement('p');
+                title.className = 'text-[13px] font-bold text-primary';
+                title.textContent = `${index + 1}. ${item.title || 'Untitled'}`;
+                const meta = document.createElement('p');
+                meta.className = 'mt-1 text-xs text-outline';
+                const score = item.score == null ? '—' : item.score;
+                meta.textContent = `score ${score} · ${item.published_date || 'date unknown'}`;
+                article.append(title, meta);
+                if (typeof item.url === 'string' && /^https?:\/\//i.test(item.url)) {
+                    const link = document.createElement('a');
+                    link.className = 'mt-1 block truncate text-xs text-secondary underline';
+                    link.href = item.url;
+                    link.target = '_blank';
+                    link.rel = 'noopener noreferrer';
+                    link.textContent = item.url;
+                    article.appendChild(link);
+                }
+                const content = document.createElement('p');
+                content.className = 'mt-1 whitespace-pre-wrap text-[13px] leading-relaxed text-on-surface-variant';
+                content.textContent = item.content || '';
+                article.appendChild(content);
+                log.appendChild(article);
+            });
+            stickToBottom(log);
+        }
+
+        function orderCards(names) {
+            names.forEach((name) => {
+                const card = processCards.get(name);
+                if (card) processFeed.appendChild(card);
+            });
+        }
+
+        function handleTrace(message, agentsContainer) {
+            const agent = message.agent || 'supervisor';
+            const log = cardLog(agent);
+            if (message.status === 'started') {
+                setCardStatus(processCards.get(agent), 'running');
+                if (message.message) appendNote(log, message.message);
+                if (Array.isArray(message.sections)) {
+                    if (message.sections.length === 0) {
+                        appendNote(log, 'No agent evidence was returned.');
+                    } else {
+                        message.sections.forEach((section) => {
+                            const probability = Number(section.probability);
+                            const shown = Number.isFinite(probability) ? probability.toFixed(2) : '—';
+                            appendNote(log, `${section.agent || 'Agent'} · relevance ${shown}`);
+                        });
+                    }
+                }
+            } else if (message.status === 'decision') {
+                setCardStatus(processCards.get(agent), 'running');
+                if (message.message) appendNote(log, message.message);
+                if (Array.isArray(message.probabilities)) {
+                    appendScoreList(log, message.probabilities, message.threshold, 'Agents');
+                    const selected = Array.isArray(message.selected) ? message.selected : [];
+                    selected.forEach((name) => ensureCard(name, 'queued'));
+                    orderCards(['supervisor', ...selected]);
+                    agentsContainer.textContent = selected.length
+                        ? `Using ${selected.map((name) => agentLabels[name] || name).join(', ')}`
+                        : 'No specialist agents were selected.';
+                    processSubtitle.textContent = selected.length
+                        ? `${selected.length} agent${selected.length === 1 ? '' : 's'} selected`
+                        : 'No agents selected';
+                } else if (Array.isArray(message.calls)) {
+                    appendScoreList(log, message.calls, message.threshold, 'Calls');
+                }
+            } else if (message.status === 'request') {
+                setCardStatus(processCards.get(agent), 'running');
+                if (message.message) appendNote(log, message.message);
+                if (message.request) appendPre(log, 'Request', JSON.stringify(message.request, null, 2));
+            } else if (message.status === 'response') {
+                setCardStatus(processCards.get(agent), 'running');
+                if (message.source === 'tavily') {
+                    appendNote(log, message.title || 'Tavily response');
+                    appendTavily(log, message.results);
+                } else {
+                    appendPre(log, message.title || 'Response', message.body || '');
+                }
+            } else if (message.status === 'completed') {
+                setCardStatus(processCards.get(agent), 'done');
+                if (message.message) appendNote(log, message.message);
+            } else if (message.status === 'error') {
+                setCardStatus(processCards.get(agent), 'error');
+                appendNote(log, message.message || 'This step failed.');
+            }
+        }
+
         function scrollToBottom() {
             setTimeout(() => {
                 scrollContainer.scrollTo({
@@ -269,7 +534,7 @@
                             <h4 class="text-xs font-black uppercase tracking-widest text-primary">Inquiry: ${ticker}</h4>
                             <span class="text-[10px] text-outline font-medium uppercase tracking-tighter">${timeString}</span>
                         </div>
-                        <p class="w-fit max-w-full break-words text-primary font-medium leading-relaxed text-lg whitespace-pre-wrap bg-surface-container-low rounded-xl px-5 py-4">${query}</p>
+                        <p class="chat-box-user w-fit max-w-full break-words font-medium leading-relaxed text-lg whitespace-pre-wrap rounded-xl px-5 py-4">${query}</p>
                     </div>
                 </div>
             `;
@@ -295,8 +560,8 @@
                                 ${timeString} • Processing...
                             </span>
                         </div>
-                        <div class="w-fit max-w-full break-words text-on-surface-variant leading-relaxed text-base markdown-container bg-surface-container-low rounded-xl px-5 py-4" id="${contentId}">
-                            <p class="animate-pulse text-secondary font-bold">Gathering data from specialized agents...</p>
+                        <div class="chat-box-report w-fit max-w-full break-words leading-relaxed text-base markdown-container rounded-xl px-5 py-4" id="${contentId}">
+                            <p class="animate-pulse font-bold">Gathering data from specialized agents...</p>
                         </div>
                         <div id="agents-${messageId}" class="text-xs text-outline" aria-live="polite">
                             Selecting research agents...
@@ -331,6 +596,14 @@
             return value.toUpperCase();
         }
 
+        let activeRun = null;
+
+        function showReportPhase(phaseLabel, phaseContainer, text) {
+            phaseLabel.textContent = text;
+            phaseContainer.classList.remove('hidden');
+            phaseContainer.classList.add('flex');
+        }
+
         async function handleSubmission() {
             const ticker = tickerInput.dataset.symbol || getTickerSymbol();
             const query = chatInput.value.trim();
@@ -340,8 +613,17 @@
                 return;
             }
 
-            chatInput.value = '';
+            if (activeRun) {
+                activeRun.stopped = true;
+                activeRun.abort.abort();
+                activeRun.timeContainer.textContent = 'Stopped';
+                if (!activeRun.reportText) {
+                    activeRun.contentContainer.textContent = 'Stopped because a new query started.';
+                }
+            }
 
+            chatInput.value = '';
+            resetProcess(ticker);
             appendUserMessage(ticker, query);
 
             const startTime = performance.now();
@@ -352,12 +634,15 @@
             const phaseContainer = document.getElementById(phaseId);
             const phaseLabel = document.getElementById(phaseLabelId);
             const downloadButton = document.getElementById(downloadId);
-            const agentLabels = {
-                NewsAgent: 'News & Events',
-                FinancialStmtAgent: 'Financial Statements',
-                OutlookAgent: 'Analyst Outlook',
-                SectorAgent: 'Sector Outlook'
+            const abort = new AbortController();
+            const run = {
+                abort,
+                contentContainer,
+                timeContainer,
+                reportText: '',
+                stopped: false
             };
+            activeRun = run;
 
             try {
                 const res = await fetch("/research", {
@@ -366,15 +651,22 @@
                     body: JSON.stringify({
                         tickerName: ticker,
                         query: query
-                    })
+                    }),
+                    signal: abort.signal
                 });
+
+                if (run.stopped) return;
 
                 if (!res.ok) {
                     const response = await res.json();
                     const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
                     timeContainer.textContent = `${elapsed}s • Failed`;
                     contentContainer.textContent = `Error: ${response.detail || 'The request failed.'}`;
-                    contentContainer.classList.add('text-error', 'font-bold');
+                    contentContainer.classList.add('is-error', 'font-bold');
+                    const log = cardLog('supervisor');
+                    setCardStatus(processCards.get('supervisor'), 'error');
+                    appendNote(log, response.detail || 'The request failed.');
+                    processSubtitle.textContent = `${ticker} · failed`;
                     return;
                 }
 
@@ -383,36 +675,44 @@
                 let pending = '';
                 let reportText = '';
                 let streamError = null;
-                const agentStatuses = new Map();
 
                 while (true) {
                     const { value, done } = await reader.read();
+                    if (run.stopped) return;
                     pending += decoder.decode(value, { stream: !done });
                     const lines = pending.split('\n');
                     pending = lines.pop() || '';
 
                     for (const line of lines) {
-                        if (!line) continue;
-                        const message = JSON.parse(line);
+                        if (!line || run.stopped) continue;
+                        let message;
+                        try {
+                            message = JSON.parse(line);
+                        } catch (parseError) {
+                            continue;
+                        }
                         if (message.type === 'token') {
                             reportText += message.content;
+                            run.reportText = reportText;
                             contentContainer.innerHTML = marked.parse(reportText);
                             scrollToBottom();
+                        } else if (message.type === 'trace') {
+                            handleTrace(message, agentsContainer);
+                            if (message.agent === 'controller' && message.status === 'started') {
+                                showReportPhase(phaseLabel, phaseContainer, 'Generating report...');
+                                processSubtitle.textContent = `${ticker} · writing the report`;
+                            } else if (message.agent === 'controller' && message.status === 'completed') {
+                                processSubtitle.textContent = `${ticker} · report ready`;
+                            }
                         } else if (message.type === 'error') {
                             streamError = message.detail;
-                        } else if (message.type === 'agent') {
-                            agentStatuses.set(message.name, message.status);
-                            agentsContainer.textContent = [...agentStatuses]
-                                .map(([name, status]) => `${agentLabels[name] || name}: ${status}`)
-                                .join(' · ');
                         } else if (message.type === 'done') {
-                            const names = message.agents.map(name => agentLabels[name] || name);
+                            const names = (message.agents || []).map(name => agentLabels[name] || name);
                             agentsContainer.textContent = names.length
                                 ? `Agents used: ${names.join(', ')}`
                                 : 'No specialist agents were selected.';
-                            phaseLabel.textContent = 'Report generated.';
-                            phaseContainer.classList.remove('hidden');
-                            phaseContainer.classList.add('flex');
+                            showReportPhase(phaseLabel, phaseContainer, 'Report generated.');
+                            processSubtitle.textContent = `${ticker} · finished`;
                             if (reportText.trim()) {
                                 downloadButton.classList.remove('hidden');
                                 downloadButton.addEventListener('click', () => {
@@ -426,29 +726,28 @@
                                     setTimeout(() => URL.revokeObjectURL(url), 1000);
                                 }, { once: true });
                             }
-                        } else if (message.type === 'phase' && message.status === 'generating') {
-                            phaseLabel.textContent = 'Generating report...';
-                            phaseContainer.classList.remove('hidden');
-                            phaseContainer.classList.add('flex');
                         }
                     }
 
                     if (done) break;
                 }
 
+                if (run.stopped) return;
                 const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
                 timeContainer.textContent = `${new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })} • ${elapsed} seconds`;
                 if (streamError) {
                     contentContainer.textContent = `Error: ${streamError}`;
-                    contentContainer.classList.add('text-error', 'font-bold');
-                    phaseLabel.textContent = 'Report generation failed.';
-                    phaseContainer.classList.remove('hidden');
-                    phaseContainer.classList.add('flex');
+                    contentContainer.classList.add('is-error', 'font-bold');
+                    showReportPhase(phaseLabel, phaseContainer, 'Report generation failed.');
+                    processSubtitle.textContent = `${ticker} · failed`;
                 }
             } catch (err) {
+                if (run.stopped || err.name === 'AbortError') return;
                 const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
                 timeContainer.textContent = `${elapsed}s • Failed`;
-                contentContainer.innerHTML = `<p class="text-error font-bold">Connection error. Make sure the FastAPI server is running on port 8000.</p>`;
+                contentContainer.classList.add('is-error', 'font-bold');
+                contentContainer.textContent = 'Connection error. Make sure the FastAPI server is running on port 8000.';
+                processSubtitle.textContent = `${ticker} · failed`;
             }
 
             scrollToBottom();
